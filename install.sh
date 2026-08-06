@@ -68,19 +68,40 @@ mkdir -p "$CLAUDE_DIR/commands" "$CLAUDE_DIR/skills"
 MANIFEST="$CLAUDE_DIR/.obsidian-starter-kit-manifest"
 touch "$MANIFEST"
 
-# 「他人のファイル」= 既に存在するが、このキットが入れた記録が無いもの
+# 「他人のファイル」= 既に存在し、記録にも無く、しかも中身がこのキットと違うもの
 in_manifest() { grep -Fxq "$1" "$MANIFEST" 2>/dev/null; }
+
+# 記録が消えていても、中身が同じならそれは以前入れたこのキット自身。他人のものではない。
+same_as_kit() {
+  local src="$1" dst="$2"
+  if [ -f "$src" ] && [ -f "$dst" ]; then
+    cmp -s "$src" "$dst"
+  elif [ -d "$src" ] && [ -d "$dst" ]; then
+    diff -rq "$src" "$dst" >/dev/null 2>&1
+  else
+    return 1
+  fi
+}
+
+# 既存が「守るべき他人のファイル」かどうか
+is_foreign() {
+  local target="$1" src="$2"
+  [ -e "$CLAUDE_DIR/$target" ] || return 1        # そもそも無い
+  in_manifest "$target" && return 1                # 自分が入れた記録がある
+  same_as_kit "$src" "$CLAUDE_DIR/$target" && return 1  # 記録は無いが中身が同じ＝キット自身
+  return 0
+}
 
 conflicts=()
 for cmd in "${COMMANDS[@]}"; do
   target="commands/$cmd.md"
-  if [ -e "$CLAUDE_DIR/$target" ] && ! in_manifest "$target"; then
+  if is_foreign "$target" "$KIT_DIR/commands/$cmd.md"; then
     conflicts+=("$target")
   fi
 done
 for skill in "${SKILLS[@]}"; do
   target="skills/$skill"
-  if [ -e "$CLAUDE_DIR/$target" ] && ! in_manifest "$target"; then
+  if is_foreign "$target" "$KIT_DIR/skills/$skill"; then
     conflicts+=("$target")
   fi
 done
@@ -98,12 +119,13 @@ if [ "${#conflicts[@]}" -gt 0 ] && [ "${OSK_FORCE:-0}" != "1" ]; then
   exit 1
 fi
 
-# 上書き前のバックアップ（--force で来た場合の保険）
+# 上書き前のバックアップ（OSK_FORCE で来た場合の保険）
+# 退避するのは「守るべき他人のファイル」だけ。キット自身を退避すると、
+# アンインストール時にそれが書き戻ってコマンドが残ってしまう。
 BACKUP_DIR="$CLAUDE_DIR/.obsidian-starter-kit-backup"
 backup_if_needed() {
-  local target="$1"
-  [ -e "$CLAUDE_DIR/$target" ] || return 0
-  in_manifest "$target" && return 0        # 自分が入れたものは退避不要
+  local target="$1" src="$2"
+  is_foreign "$target" "$src" || return 0
   mkdir -p "$BACKUP_DIR/$(dirname "$target")"
   cp -R "$CLAUDE_DIR/$target" "$BACKUP_DIR/$target"
 }
@@ -114,7 +136,7 @@ installed_commands=0
 for cmd in "${COMMANDS[@]}"; do
   src="$KIT_DIR/commands/$cmd.md"
   [ -f "$src" ] || continue
-  backup_if_needed "commands/$cmd.md"
+  backup_if_needed "commands/$cmd.md" "$src"
   cp "$src" "$CLAUDE_DIR/commands/$cmd.md"
   printf '%s\n' "commands/$cmd.md" >> "$NEW_MANIFEST"
   installed_commands=$((installed_commands + 1))
@@ -124,7 +146,7 @@ installed_skills=0
 for skill in "${SKILLS[@]}"; do
   src="$KIT_DIR/skills/$skill"
   [ -d "$src" ] || continue
-  backup_if_needed "skills/$skill"
+  backup_if_needed "skills/$skill" "$src"
   rm -rf "${CLAUDE_DIR:?}/skills/$skill"
   cp -R "$src" "$CLAUDE_DIR/skills/$skill"
   printf '%s\n' "skills/$skill" >> "$NEW_MANIFEST"

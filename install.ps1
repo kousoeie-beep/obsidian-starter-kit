@@ -57,15 +57,46 @@ New-Item -ItemType Directory -Force -Path (Join-Path $ClaudeDir 'skills')   | Ou
 $ManifestPath = Join-Path $ClaudeDir '.obsidian-starter-kit-manifest'
 $Manifest = if (Test-Path $ManifestPath) { Get-Content $ManifestPath } else { @() }
 
-# 既にあるが、このキットが入れた記録が無いもの＝他人のファイル
+# 記録が消えていても、中身が同じならそれは以前入れたこのキット自身。他人のものではない。
+function Test-SameAsKit {
+    param($Src, $Dst)
+    if (-not (Test-Path $Src) -or -not (Test-Path $Dst)) { return $false }
+    $srcIsDir = (Get-Item $Src).PSIsContainer
+    $dstIsDir = (Get-Item $Dst).PSIsContainer
+    if ($srcIsDir -ne $dstIsDir) { return $false }
+    if (-not $srcIsDir) {
+        return (Get-FileHash $Src).Hash -eq (Get-FileHash $Dst).Hash
+    }
+    # ディレクトリ：相対パス＋ハッシュの一覧が一致するか
+    function Get-Fingerprint($root) {
+        Get-ChildItem $root -Recurse -File | ForEach-Object {
+            "$($_.FullName.Substring($root.Length))|$((Get-FileHash $_.FullName).Hash)"
+        } | Sort-Object
+    }
+    $a = @(Get-Fingerprint (Resolve-Path $Src).Path)
+    $b = @(Get-Fingerprint (Resolve-Path $Dst).Path)
+    if ($a.Count -ne $b.Count) { return $false }
+    return -not (Compare-Object $a $b)
+}
+
+# 既存が「守るべき他人のファイル」かどうか
+function Test-Foreign {
+    param($Rel, $Src)
+    $dst = Join-Path $ClaudeDir $Rel
+    if (-not (Test-Path $dst))        { return $false }  # そもそも無い
+    if ($Manifest -contains $Rel)     { return $false }  # 自分が入れた記録がある
+    if (Test-SameAsKit $Src $dst)     { return $false }  # 記録は無いが中身が同じ＝キット自身
+    return $true
+}
+
 $conflicts = @()
 foreach ($cmd in $Commands) {
     $rel = "commands/$cmd.md"
-    if ((Test-Path (Join-Path $ClaudeDir $rel)) -and ($Manifest -notcontains $rel)) { $conflicts += $rel }
+    if (Test-Foreign $rel (Join-Path $KitDir "commands\$cmd.md")) { $conflicts += $rel }
 }
 foreach ($skill in $Skills) {
     $rel = "skills/$skill"
-    if ((Test-Path (Join-Path $ClaudeDir $rel)) -and ($Manifest -notcontains $rel)) { $conflicts += $rel }
+    if (Test-Foreign $rel (Join-Path $KitDir "skills\$skill")) { $conflicts += $rel }
 }
 
 if ($conflicts.Count -gt 0 -and $env:OSK_FORCE -ne '1') {
@@ -88,7 +119,9 @@ foreach ($cmd in $Commands) {
     if (-not (Test-Path $src)) { continue }
     $rel = "commands/$cmd.md"
     $dst = Join-Path $ClaudeDir $rel
-    if ((Test-Path $dst) -and ($Manifest -notcontains $rel)) {
+    # 退避するのは守るべき他人のファイルだけ。キット自身を退避すると
+    # アンインストール時に書き戻ってコマンドが残る。
+    if (Test-Foreign $rel $src) {
         New-Item -ItemType Directory -Force -Path (Join-Path $BackupDir 'commands') | Out-Null
         Copy-Item $dst (Join-Path $BackupDir $rel) -Force
     }
@@ -103,7 +136,7 @@ foreach ($skill in $Skills) {
     if (-not (Test-Path $src)) { continue }
     $rel = "skills/$skill"
     $dst = Join-Path $ClaudeDir $rel
-    if ((Test-Path $dst) -and ($Manifest -notcontains $rel)) {
+    if (Test-Foreign $rel $src) {
         New-Item -ItemType Directory -Force -Path (Join-Path $BackupDir 'skills') | Out-Null
         Copy-Item $dst (Join-Path $BackupDir $rel) -Recurse -Force
     }
