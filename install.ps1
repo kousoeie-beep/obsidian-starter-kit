@@ -92,11 +92,11 @@ function Test-Foreign {
 $conflicts = @()
 foreach ($cmd in $Commands) {
     $rel = "commands/$cmd.md"
-    if (Test-Foreign $rel (Join-Path $KitDir "commands\$cmd.md")) { $conflicts += $rel }
+    if (Test-Foreign $rel (Join-Path (Join-Path $KitDir "commands") "$cmd.md")) { $conflicts += $rel }
 }
 foreach ($skill in $Skills) {
     $rel = "skills/$skill"
-    if (Test-Foreign $rel (Join-Path $KitDir "skills\$skill")) { $conflicts += $rel }
+    if (Test-Foreign $rel (Join-Path (Join-Path $KitDir "skills") "$skill")) { $conflicts += $rel }
 }
 
 if ($conflicts.Count -gt 0 -and $env:OSK_FORCE -ne '1') {
@@ -115,7 +115,7 @@ $NewManifest = @()
 
 $installedCommands = 0
 foreach ($cmd in $Commands) {
-    $src = Join-Path $KitDir "commands\$cmd.md"
+    $src = Join-Path (Join-Path $KitDir "commands") "$cmd.md"
     if (-not (Test-Path $src)) { continue }
     $rel = "commands/$cmd.md"
     $dst = Join-Path $ClaudeDir $rel
@@ -132,7 +132,7 @@ foreach ($cmd in $Commands) {
 
 $installedSkills = 0
 foreach ($skill in $Skills) {
-    $src = Join-Path $KitDir "skills\$skill"
+    $src = Join-Path (Join-Path $KitDir "skills") "$skill"
     if (-not (Test-Path $src)) { continue }
     $rel = "skills/$skill"
     $dst = Join-Path $ClaudeDir $rel

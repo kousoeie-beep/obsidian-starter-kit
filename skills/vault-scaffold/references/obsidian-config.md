@@ -9,6 +9,16 @@
 - Obsidian のバージョンによって形式が変わることがある。書いたあと Obsidian が起動して正常に読めれば成功。
   読めない形式だった場合、Obsidian は黙って既定値に戻すので、**開いたあとに設定画面で確認してもらう**。
 
+> **実機で確認済み（2026-08-07 / macOS）。** 以下の内容で vault を作り、Obsidian で開いて終了させたところ、
+> `core-plugins` の `bases` `daily-notes` `templates` `properties` `file-recovery`、
+> `app` の `newFileLocation` `newFileFolderPath` `alwaysUpdateLinks` `attachmentFolderPath`、
+> `daily-notes` の `folder` `template`、`templates.folder`、`graph.colorGroups` は
+> **すべてそのまま保持された**（＝Obsidian に受け入れられている）。
+> 唯一の変化は、`core-plugins.json` に未指定だった `slash-command: false` が
+> Obsidian 側で補完されたことだけ。`.base` とテンプレートも無傷だった。
+>
+> つまり **未指定のキーは Obsidian が勝手に補ってくれる**ので、全キーを列挙する必要はない。
+
 ---
 
 ## core-plugins.json
