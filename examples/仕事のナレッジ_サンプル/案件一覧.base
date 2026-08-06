@@ -1,0 +1,18 @@
+filters:
+  and:
+    - 'type == "project"'
+views:
+  - type: table
+    name: 進行中
+    filters:
+      and:
+        - 'status == "進行中"'
+    order:
+      - file.name
+      - status
+      - 関係者
+  - type: table
+    name: すべて
+    order:
+      - file.name
+      - status

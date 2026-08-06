@@ -1,0 +1,17 @@
+{
+  "name": "obsidian-starter-kit",
+  "version": "0.1.0",
+  "description": "Obsidian の vault を対話1問で構築し、日々の運用と使い方の解説までを日本語で行う。非エンジニア向け。MCP 不要、公式 Obsidian CLI と vault 直結で動く。",
+  "author": {
+    "name": "ZETTAI"
+  },
+  "license": "MIT",
+  "keywords": [
+    "obsidian",
+    "vault",
+    "pkm",
+    "japanese",
+    "onboarding",
+    "second-brain"
+  ]
+}

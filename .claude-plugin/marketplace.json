@@ -1,0 +1,14 @@
+{
+  "name": "obsidian-starter-kit",
+  "owner": {
+    "name": "ZETTAI"
+  },
+  "plugins": [
+    {
+      "name": "obsidian-starter-kit",
+      "source": "./",
+      "description": "Obsidian vault を対話1問で構築する日本語キット",
+      "version": "0.1.0"
+    }
+  ]
+}

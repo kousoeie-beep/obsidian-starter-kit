@@ -1,0 +1,13 @@
+{
+  "collapse-filter": false, "showTags": false, "showAttachments": false,
+  "hideUnresolved": true, "showOrphans": true, "collapse-color-groups": false,
+  "colorGroups": [
+    { "query": "path:01_受信箱",   "color": { "a": 1, "rgb": 14701138 } },
+    { "query": "path:02_議事録",   "color": { "a": 1, "rgb": 5431378 } },
+    { "query": "path:03_案件",     "color": { "a": 1, "rgb": 5450097 } },
+    { "query": "path:05_人と組織", "color": { "a": 1, "rgb": 11621088 } }
+  ],
+  "showArrow": true, "textFadeMultiplier": -1, "nodeSizeMultiplier": 1.5,
+  "lineSizeMultiplier": 1.2, "centerStrength": 0.5, "repelStrength": 12,
+  "linkStrength": 1, "linkDistance": 120, "scale": 1
+}
