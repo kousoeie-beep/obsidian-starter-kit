@@ -17,8 +17,8 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     env:
       OSK_REPO_URL: ${{ github.workspace }}
-      OSK_KIT_DIR: ${{ runner.temp }}/kit
-      OSK_CLAUDE_DIR: ${{ runner.temp }}/claude
+      OSK_KIT_DIR: ${{ github.workspace }}/../osk-kit
+      OSK_CLAUDE_DIR: ${{ github.workspace }}/../osk-claude
     steps:
       - uses: actions/checkout@v4
 
@@ -78,8 +78,8 @@ jobs:
         shell: powershell
     env:
       OSK_REPO_URL: ${{ github.workspace }}
-      OSK_KIT_DIR: ${{ runner.temp }}\kit
-      OSK_CLAUDE_DIR: ${{ runner.temp }}\claude
+      OSK_KIT_DIR: ${{ github.workspace }}\..\osk-kit
+      OSK_CLAUDE_DIR: ${{ github.workspace }}\..\osk-claude
     steps:
       - uses: actions/checkout@v4
 
@@ -139,8 +139,8 @@ jobs:
         shell: pwsh
     env:
       OSK_REPO_URL: ${{ github.workspace }}
-      OSK_KIT_DIR: ${{ runner.temp }}\kit7
-      OSK_CLAUDE_DIR: ${{ runner.temp }}\claude7
+      OSK_KIT_DIR: ${{ github.workspace }}\..\osk-kit7
+      OSK_CLAUDE_DIR: ${{ github.workspace }}\..\osk-claude7
     steps:
       - uses: actions/checkout@v4
 
