@@ -20,7 +20,7 @@ curl -fsSL https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/
 **Windows** — PowerShell に貼る（スタートメニュー →「PowerShell」で開きます）
 
 ```powershell
-irm https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.ps1 | iex
+[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.ps1 | iex
 ```
 
 > どちらも [git](https://git-scm.com/) が必要です。入っていなければインストーラが案内します。
@@ -135,7 +135,7 @@ bash ~/.obsidian-starter-kit/uninstall.sh
 
 ```powershell
 # Windows
-powershell -File $HOME\.obsidian-starter-kit\uninstall.ps1
+powershell -ExecutionPolicy Bypass -File $HOME\.obsidian-starter-kit\uninstall.ps1
 ```
 
 ## 中身を確認してから実行したい場合

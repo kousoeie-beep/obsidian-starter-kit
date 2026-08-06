@@ -1,5 +1,8 @@
 # Obsidian Starter Kit — アンインストーラ（Windows / PowerShell 版）
-# 使い方: powershell -File $HOME\.obsidian-starter-kit\uninstall.ps1
+# 使い方: powershell -ExecutionPolicy Bypass -File $HOME\.obsidian-starter-kit\uninstall.ps1
+#
+# -ExecutionPolicy Bypass は、Windows の既定でスクリプトファイルの実行が
+# 禁止されている（Restricted）環境でも動くようにするため。
 #
 # 消すのは「このキットが入れた記録が残っているもの」だけです。
 # あなたの vault・ノートには一切触れません。

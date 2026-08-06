@@ -2,7 +2,10 @@
 #  Obsidian Starter Kit — インストーラ（Windows / PowerShell 版）
 #
 #  使い方（PowerShell に1行貼るだけ）:
-#    irm https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.ps1 | iex
+#    [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.ps1 | iex
+#
+#  先頭の TLS 指定は Windows PowerShell 5.1 対策。5.1 は環境によって既定の
+#  セキュリティプロトコルが TLS 1.2 でなく、GitHub への接続が無言で失敗する。
 #
 #  何をするか:
 #    1. キット本体を %USERPROFILE%\.obsidian-starter-kit に取得（2回目以降は更新）
@@ -105,7 +108,7 @@ if ($conflicts.Count -gt 0 -and $env:OSK_FORCE -ne '1') {
     foreach ($c in $conflicts) { Say "    $ClaudeDir\$c" }
     Say ""
     Say "上書きせずに中止しました。上書きしてよければ、こう実行してください:"
-    Say "  `$env:OSK_FORCE='1'; irm https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.ps1 | iex"
+    Say "  `$env:OSK_FORCE='1'; powershell -ExecutionPolicy Bypass -File $KitDir\install.ps1"
     Say ""
     exit 1
 }
@@ -185,5 +188,5 @@ Say "     質問は1つだけです。あとは全部そろった状態で出て
 Say ""
 Say "使えるコマンド: /vault-init（作る） /vault-guide（教わる） /vault-save（残す）"
 Say "                /vault-ask（聞く）   /vault-lint（点検する）"
-Say "アンインストール: powershell -File $KitDir\uninstall.ps1"
+Say "アンインストール: powershell -ExecutionPolicy Bypass -File $KitDir\uninstall.ps1"
 Say ""
