@@ -334,6 +334,8 @@ Obsidian の作者も同じことを言っています。
 | `curl` の行でエラーが出る | ネットワークを確認。社内プロキシがある場合は情シスに確認。ダメなら**ZIP 配布**に切り替える（下記） |
 | Windows で `curl -fsSL` が動かない | Windows は `curl` ではなく **`irm ... \| iex`** を使う。手順2の Windows 用を貼る |
 | Windows で `git が見つかりません` | https://git-scm.com/download/win を入れて PowerShell を開き直す |
+| Windows で接続エラー・無反応になる | 古い PowerShell 5.1 は TLS1.2 が既定でないことがある。**手順2の1行は先頭の `[Net.ServicePointManager]...` から全部貼る**（ここが抜けると無言で失敗する） |
+| Windows で「スクリプトの実行が無効」と出る | ファイルから実行するときは `powershell -ExecutionPolicy Bypass -File ...` を使う。インストールの1行（`irm \| iex`）はこの制限を受けない |
 | `claude` と打っても動かない | Claude Code が未インストール → https://claude.com/product/claude-code |
 | `/vault-init` が出てこない | インストールの1行をもう一度実行。**Claude Code を一度終了して起動し直す** |
 | `同じ名前のファイルが既にあります` と出て止まる | 以前に自分で作ったコマンドがある。**その場では無理に上書きしない**。補助者を呼ぶ |

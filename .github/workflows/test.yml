@@ -1,0 +1,186 @@
+name: install test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # ── Mac / Linux ────────────────────────────────────────────────────────────
+  posix:
+    name: ${{ matrix.os }} / install.sh
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 構文チェック
+        run: bash -n install.sh && bash -n uninstall.sh
+
+      - name: クリーン環境でインストール
+        env:
+          OSK_REPO_URL: ${{ github.workspace }}
+          OSK_KIT_DIR: ${{ runner.temp }}/kit
+          OSK_CLAUDE_DIR: ${{ runner.temp }}/claude
+        run: bash install.sh
+
+      - name: 配置されたものを確認
+        env:
+          OSK_CLAUDE_DIR: ${{ runner.temp }}/claude
+        run: |
+          set -e
+          test "$(ls "$OSK_CLAUDE_DIR"/commands/vault-*.md | wc -l)" -eq 5
+          test "$(ls -d "$OSK_CLAUDE_DIR"/skills/vault-* | wc -l)" -eq 3
+          test "$(ls "$OSK_CLAUDE_DIR"/skills/vault-scaffold/references/*.md | wc -l)" -eq 5
+          test -f "$OSK_CLAUDE_DIR/.obsidian-starter-kit-manifest"
+          echo "OK"
+
+      - name: 他人の同名コマンドを上書きしないこと
+        env:
+          OSK_REPO_URL: ${{ github.workspace }}
+          OSK_KIT_DIR: ${{ runner.temp }}/kit
+          OSK_CLAUDE_DIR: ${{ runner.temp }}/claude
+        run: |
+          set -e
+          rm -f "$OSK_CLAUDE_DIR/.obsidian-starter-kit-manifest"
+          echo "自作の大事なコマンド" > "$OSK_CLAUDE_DIR/commands/vault-save.md"
+          if bash install.sh; then echo "衝突を検出できていない"; exit 1; fi
+          grep -q "自作の大事なコマンド" "$OSK_CLAUDE_DIR/commands/vault-save.md"
+          echo "OK"
+
+      - name: 上書き後アンインストールで元に戻ること
+        env:
+          OSK_REPO_URL: ${{ github.workspace }}
+          OSK_KIT_DIR: ${{ runner.temp }}/kit
+          OSK_CLAUDE_DIR: ${{ runner.temp }}/claude
+          OSK_FORCE: "1"
+        run: |
+          set -e
+          bash install.sh
+          grep -q "自作の大事なコマンド" "$OSK_CLAUDE_DIR/.obsidian-starter-kit-backup/commands/vault-save.md"
+          OSK_FORCE= bash "$OSK_KIT_DIR/uninstall.sh"
+          grep -q "自作の大事なコマンド" "$OSK_CLAUDE_DIR/commands/vault-save.md"
+          test ! -f "$OSK_CLAUDE_DIR/commands/vault-init.md"
+          echo "OK"
+
+      - name: 生成物の JSON と参照先が壊れていないこと
+        run: |
+          set -e
+          cd "examples/仕事のナレッジ_サンプル"
+          for f in .obsidian/*.json; do node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))"; done
+          test -d "$(node -pe "JSON.parse(require('fs').readFileSync('.obsidian/app.json','utf8')).newFileFolderPath")"
+          test -d "$(node -pe "JSON.parse(require('fs').readFileSync('.obsidian/templates.json','utf8')).folder")"
+          test -f "$(node -pe "JSON.parse(require('fs').readFileSync('.obsidian/daily-notes.json','utf8')).template").md"
+          echo "OK"
+
+  # ── Windows（本物） ────────────────────────────────────────────────────────
+  windows:
+    name: windows-latest / install.ps1 (${{ matrix.shell }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # powershell = Windows PowerShell 5.1（Windows 標準）
+        # pwsh       = PowerShell 7
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 構文チェック
+        shell: ${{ matrix.shell }}
+        run: |
+          $errs = $null
+          foreach ($f in @('install.ps1','uninstall.ps1')) {
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errs) | Out-Null
+            if ($errs.Count -gt 0) { $errs | ForEach-Object { Write-Host $_.Message }; exit 1 }
+          }
+          Write-Host "構文OK ($($PSVersionTable.PSVersion))"
+
+      - name: クリーン環境でインストール
+        shell: ${{ matrix.shell }}
+        env:
+          OSK_REPO_URL: ${{ github.workspace }}
+          OSK_KIT_DIR: ${{ runner.temp }}\kit
+          OSK_CLAUDE_DIR: ${{ runner.temp }}\claude
+        run: ./install.ps1
+
+      - name: 配置されたものを確認
+        shell: ${{ matrix.shell }}
+        env:
+          OSK_CLAUDE_DIR: ${{ runner.temp }}\claude
+        run: |
+          $c = $env:OSK_CLAUDE_DIR
+          if ((Get-ChildItem "$c\commands" -Filter "vault-*.md").Count -ne 5) { throw "コマンド数が違う" }
+          if ((Get-ChildItem "$c\skills" -Directory).Count -ne 3) { throw "スキル数が違う" }
+          if ((Get-ChildItem "$c\skills\vault-scaffold\references" -Filter "*.md").Count -ne 5) { throw "references が足りない" }
+          if (-not (Test-Path "$c\.obsidian-starter-kit-manifest")) { throw "マニフェストが無い" }
+          Write-Host "OK"
+
+      - name: 他人の同名コマンドを上書きしないこと
+        shell: ${{ matrix.shell }}
+        env:
+          OSK_REPO_URL: ${{ github.workspace }}
+          OSK_KIT_DIR: ${{ runner.temp }}\kit
+          OSK_CLAUDE_DIR: ${{ runner.temp }}\claude
+        run: |
+          $c = $env:OSK_CLAUDE_DIR
+          Remove-Item "$c\.obsidian-starter-kit-manifest" -Force
+          Set-Content "$c\commands\vault-save.md" "自作の大事なコマンド"
+          ./install.ps1
+          if ($LASTEXITCODE -eq 0) { throw "衝突を検出できていない" }
+          if (-not ((Get-Content "$c\commands\vault-save.md" -Raw) -match "自作の大事なコマンド")) { throw "自作ファイルが壊れた" }
+          Write-Host "OK"
+
+      - name: 上書き後アンインストールで元に戻ること
+        shell: ${{ matrix.shell }}
+        env:
+          OSK_REPO_URL: ${{ github.workspace }}
+          OSK_KIT_DIR: ${{ runner.temp }}\kit
+          OSK_CLAUDE_DIR: ${{ runner.temp }}\claude
+          OSK_FORCE: "1"
+        run: |
+          $c = $env:OSK_CLAUDE_DIR
+          ./install.ps1
+          if (-not ((Get-Content "$c\.obsidian-starter-kit-backup\commands\vault-save.md" -Raw) -match "自作の大事なコマンド")) { throw "退避されていない" }
+          $env:OSK_FORCE = $null
+          & "$env:OSK_KIT_DIR\uninstall.ps1"
+          if (-not ((Get-Content "$c\commands\vault-save.md" -Raw) -match "自作の大事なコマンド")) { throw "復元されていない" }
+          if (Test-Path "$c\commands\vault-init.md") { throw "キットのコマンドが残っている" }
+          Write-Host "OK"
+
+  # ── PowerShell 5.1 互換性の静的解析 ───────────────────────────────────────
+  ps-compat:
+    name: PowerShell 5.1 互換性チェック
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PSScriptAnalyzer で 5.1 互換性を検査
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $settings = @{
+            Rules = @{
+              PSUseCompatibleSyntax   = @{ Enable = $true; TargetVersions = @('5.1','7.0') }
+              PSUseCompatibleCommands = @{ Enable = $true
+                TargetProfiles = @('win-8_x64_10.0.17763.0_5.1.17763.316_x64_4.0.30319.42000_framework') }
+            }
+          }
+          $bad = 0
+          foreach ($f in @('install.ps1','uninstall.ps1')) {
+            $r = Invoke-ScriptAnalyzer -Path $f -Settings $settings
+            $compat = @($r | Where-Object { $_.RuleName -like '*Compatible*' })
+            if ($compat.Count -gt 0) {
+              Write-Host "── $f ── 5.1 非互換 $($compat.Count) 件"
+              $compat | ForEach-Object { Write-Host "  行$($_.Line): $($_.Message)" }
+              $bad += $compat.Count
+            } else {
+              Write-Host "── $f ── 5.1 非互換なし"
+            }
+          }
+          if ($bad -gt 0) { exit 1 }
