@@ -134,6 +134,10 @@ for f in .obsidian/*.json; do node -e "JSON.parse(require('fs').readFileSync('$f
 
 ## やらないこと
 
+- **サンプルノートを作らない。** フォルダは空で渡す。
+  「田中さん」「案件A」のような架空のデータを入れると、持ち主が消す手間が増え、
+  自分のノートと見分けがつかなくなる。動きを見せたいときは `examples/` の vault を使う
+
 - MCP サーバーの設定（不要。vault 直結と公式 Obsidian CLI で足りる）
 - コミュニティプラグインを6つ以上入れる（起動が3〜5秒遅くなる）
 - Dataview のクエリを初期構成に含める（コア機能の **Bases** を使う）
