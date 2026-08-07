@@ -233,6 +233,17 @@ jobs:
       - name: 公開URLから1行で入れる
         run: curl -fsSL https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.sh | bash
 
+      - name: 1行で vault まで作れるか
+        run: |
+          set -e
+          bash "$OSK_KIT_DIR/install.sh" --vault "$GITHUB_WORKSPACE/ol-vault" --type 2
+          test -d "$GITHUB_WORKSPACE/ol-vault/02_議事録"
+          test -f "$GITHUB_WORKSPACE/ol-vault/00_はじめに.md"
+          test -f "$GITHUB_WORKSPACE/ol-vault/_ログ.md"
+          test -f "$GITHUB_WORKSPACE/ol-vault/Templates/デイリーノート.md"
+          for f in "$GITHUB_WORKSPACE/ol-vault"/.obsidian/*.json; do node -e "JSON.parse(require(\"fs\").readFileSync(process.argv[1],\"utf8\"))" "$f"; done
+          echo OK
+
       - name: 入ったか確認
         run: |
           set -e

@@ -1,15 +1,12 @@
 # Obsidian Starter Kit
 
 **Obsidian を「開いた瞬間から書ける状態」で作るキット。**
-質問は1つだけ。フォルダも設定もテンプレートも揃った vault が出てきます。
-
-Claude Code に投げるだけなので、ターミナルの知識は要りません。
+**ターミナルに1行貼るだけ。**用途を番号で選ぶと、フォルダも設定もテンプレートも
+揃った vault が出てきます。
 
 ---
 
-## 使い方は2ステップ
-
-### 1. インストール（1行）
+## 使い方は1行だけ
 
 **Mac / Linux** — ターミナルに貼る（`Command + Space` →「ターミナル」で開きます）
 
@@ -23,25 +20,34 @@ curl -fsSL https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/
 [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; iex ((irm https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.ps1).TrimStart([char]0xFEFF))
 ```
 
+これだけです。実行すると**用途を番号で聞かれる**ので、選ぶと vault ができます。
+
+```
+続けて vault（ノートの入れ物）を作りますか？
+  作らない場合はそのまま Enter を押してください。
+
+  1) 個人のメモをためたい
+  2) 仕事のメモと議事録をためたい
+  3) 勉強したことを残したい
+  4) チームで手順書を共有したい
+
+  番号を入力（作らないなら Enter）:
+  どこに作りますか？ [~/Documents/my-vault]:
+```
+
+あとは **Obsidian で「フォルダを vault として開く」**から、できたフォルダを選ぶだけです。
+フォルダ・テンプレート・Obsidian の設定・最初に読むノートまで、すべて入った状態で出てきます。
+
+> **Claude Code は無くても vault は作れます。** AI に手伝わせたくなったら、
+> その vault のフォルダで `claude` を起動してください。`/vault-guide` `/vault-save` などが使えます。
+
+> 聞かれずに一気に作りたい場合は、パスと型を渡せます。
+> ```bash
+> curl -fsSL .../install.sh | bash -s -- --vault ~/Documents/my-vault --type 2
+> ```
+
 > どちらも [git](https://git-scm.com/) が必要です。入っていなければインストーラが案内します。
 > 同じ名前のコマンドが既にある場合は、**上書きせずに中止**して知らせます。
-
-### 2. vault を作る
-
-vault を置きたい場所（例：`書類` の中に作った空フォルダ）でターミナルを開いて、
-
-```bash
-claude
-```
-
-起動したら、こう打つだけです。
-
-```
-/vault-init
-```
-
-聞かれるのは **「この vault は何のために使いますか？」の1問だけ**。
-あとはフォルダ・テンプレート・Obsidian の設定・最初に読むノートまで、まとめて作られます。
 
 ---
 
