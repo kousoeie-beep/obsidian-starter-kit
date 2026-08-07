@@ -215,3 +215,50 @@ jobs:
             }
           }
           if ($bad -gt 0) { exit 1 }
+
+  # ── 公開URLからの「1行インストール」そのものを検証 ────────────────────────
+  # 他のジョブはローカルの install.sh を実行している。ここは受講者と同じく
+  # 公開URLから取得して実行する。checkout しないのが要点（素の環境に近い）。
+  oneliner-posix:
+    name: 1行インストール / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    env:
+      OSK_KIT_DIR: ${{ github.workspace }}/ol-kit
+      OSK_CLAUDE_DIR: ${{ github.workspace }}/ol-claude
+    steps:
+      - name: 公開URLから1行で入れる
+        run: curl -fsSL https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.sh | bash
+
+      - name: 入ったか確認
+        run: |
+          set -e
+          test "$(ls "$OSK_CLAUDE_DIR"/commands/vault-*.md | wc -l)" -eq 5
+          test "$(ls -d "$OSK_CLAUDE_DIR"/skills/vault-* | wc -l)" -eq 3
+          test -f "$OSK_CLAUDE_DIR/skills/vault-scaffold/SKILL.md"
+          echo OK
+
+  oneliner-windows:
+    name: 1行インストール / windows (PowerShell 5.1)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: powershell
+    env:
+      OSK_KIT_DIR: ${{ github.workspace }}\ol-kit
+      OSK_CLAUDE_DIR: ${{ github.workspace }}\ol-claude
+    steps:
+      - name: install with the documented one-liner
+        run: |
+          [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.ps1 | iex
+
+      - name: verify
+        run: |
+          $c = $env:OSK_CLAUDE_DIR
+          if ((Get-ChildItem "$c\commands" -Filter "vault-*.md").Count -ne 5) { throw "wrong command count" }
+          if ((Get-ChildItem "$c\skills" -Directory).Count -ne 3) { throw "wrong skill count" }
+          if (-not (Test-Path "$c\skills\vault-scaffold\SKILL.md")) { throw "skill missing" }
+          Write-Host OK
