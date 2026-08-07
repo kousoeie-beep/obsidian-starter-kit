@@ -41,6 +41,31 @@ curl -fsSL https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/
 > **Claude Code は無くても vault は作れます。** AI に手伝わせたくなったら、
 > その vault のフォルダで `claude` を起動してください。`/vault-guide` `/vault-save` などが使えます。
 
+### Hermes を使っている場合
+
+[Hermes](https://github.com/NousResearch/hermes-agent)（Nous Research の AI エージェント）が
+入っていると、**この vault を Hermes にも教えるか聞かれます。**
+
+```
+Hermes が見つかりました。この vault を Hermes にも教えますか？
+  教えると、Hermes からこの vault のノートを読み書きできます。
+  教える？ (Y/n):
+```
+
+Hermes の Obsidian 連携は「メモリ」ではなく **`note-taking/obsidian` という同梱スキル**で、
+vault の場所は `OBSIDIAN_VAULT_PATH` 環境変数で決まります。**設定しないと
+`~/Documents/Obsidian Vault` を黙って見に行き、しかもどこを見ているか教えてくれません**
+（[issue #29469](https://github.com/NousResearch/hermes-agent/issues/29469)）。
+だから明示的に設定しておく価値があります。
+
+- 設定するのは `OBSIDIAN_VAULT_PATH` の 1 行だけ。**API キーなど他の設定には一切触りません**
+- 既に別の vault が設定されていたら、**確認してから**切り替え、元のファイルを退避します
+- Hermes が入っていなければ、何も起きません
+
+> Hermes 側の `config.yaml` にある `obsidian_vault:` は**読まれない設定**なので、
+> ここには何も書かないでください（[issue #2736](https://github.com/NousResearch/hermes-agent/issues/2736)）。
+> このキットも触りません。
+
 ### フォルダ名は自分で決められます
 
 型を選んだあと、フォルダ名を1つずつ聞かれます。**そのままでよければ Enter** を押していってください。
