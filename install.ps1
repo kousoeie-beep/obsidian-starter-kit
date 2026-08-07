@@ -76,8 +76,8 @@ function Test-SameAsKit {
             "$($_.FullName.Substring($root.Length))|$((Get-FileHash $_.FullName).Hash)"
         } | Sort-Object
     }
-    $a = @(Get-Fingerprint (Resolve-Path $Src).Path)
-    $b = @(Get-Fingerprint (Resolve-Path $Dst).Path)
+    $a = @(Get-Fingerprint (Resolve-Path $Src).Path.TrimEnd('\', '/'))
+    $b = @(Get-Fingerprint (Resolve-Path $Dst).Path.TrimEnd('\', '/'))
     if ($a.Count -ne $b.Count) { return $false }
     return -not (Compare-Object $a $b)
 }

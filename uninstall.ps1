@@ -35,8 +35,11 @@ Write-Host "✓ $removed 件を削除しました"
 if (Test-Path $BackupDir) {
     Write-Host ""
     Write-Host "インストール時に退避したファイルを書き戻しています…"
-    Get-ChildItem $BackupDir -Recurse -File | ForEach-Object {
-        $rel = $_.FullName.Substring($BackupDir.Length + 1)
+    # $BackupDir に ".." が含まれていると、正規化済みの FullName より長くなり
+    # Substring が落ちる。先に絶対パスへ正規化しておく。
+    $backupRoot = (Resolve-Path $BackupDir).Path.TrimEnd('\', '/')
+    Get-ChildItem $backupRoot -Recurse -File | ForEach-Object {
+        $rel = $_.FullName.Substring($backupRoot.Length + 1)
         $dst = Join-Path $ClaudeDir $rel
         New-Item -ItemType Directory -Force -Path (Split-Path $dst) | Out-Null
         Copy-Item $_.FullName $dst -Force
