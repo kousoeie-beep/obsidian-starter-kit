@@ -2,10 +2,16 @@
 #  Obsidian Starter Kit — インストーラ（Windows / PowerShell 版）
 #
 #  使い方（PowerShell に1行貼るだけ）:
-#    [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.ps1 | iex
+#    [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; iex ((irm https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.ps1).TrimStart([char]0xFEFF))
 #
-#  先頭の TLS 指定は Windows PowerShell 5.1 対策。5.1 は環境によって既定の
-#  セキュリティプロトコルが TLS 1.2 でなく、GitHub への接続が無言で失敗する。
+#  1行が長いのには理由が2つある:
+#   - 先頭の TLS 指定は Windows PowerShell 5.1 対策。5.1 は環境によって既定の
+#     セキュリティプロトコルが TLS 1.2 でなく、GitHub への接続が無言で失敗する。
+#   - TrimStart([char]0xFEFF) はこのファイルの BOM を落とすため。
+#     このファイルは日本語を含むので UTF-8 BOM 付きで保存する必要がある
+#     （BOM が無いと 5.1 が ANSI として読み、構文エラーになる）。
+#     一方 irm | iex では BOM が文字列の先頭に残り、iex がコマンド名と誤認する。
+#     ファイル実行には BOM が要り、iex には BOM が邪魔、という板挟みの解決策。
 #
 #  何をするか:
 #    1. キット本体を %USERPROFILE%\.obsidian-starter-kit に取得（2回目以降は更新）
