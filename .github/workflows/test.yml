@@ -93,6 +93,8 @@ jobs:
           ENVF="$FH/.env"
           mkdir -p "$FH"
           printf 'SOME_API_KEY=secret123\nOTHER_SETTING=abc\n' > "$ENVF"
+          # 前のステップで残した衝突状態と混ざらないよう、専用の配置先を使う
+          export OSK_CLAUDE_DIR="$GITHUB_WORKSPACE/hermes-claude"
 
           # 1回目：未設定の状態から設定される
           HERMES_HOME="$FH" OSK_HERMES=1 bash "$OSK_KIT_DIR/install.sh" --vault "$GITHUB_WORKSPACE/hv1" --type 2
