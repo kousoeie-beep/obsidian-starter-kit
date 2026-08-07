@@ -188,7 +188,80 @@ else
   say "  Obsidian の 設定 → General → Command line interface から有効にできます（任意）${RESET}"
 fi
 
-# ── 5. 次の一手 ──────────────────────────────────────────────────────────────
+# ── 5. vault を作る ──────────────────────────────────────────────────────────
+# curl | bash で実行されると標準入力がスクリプト本体で埋まるため、
+# 対話は /dev/tty から読む。tty が無い環境（CI）では対話をスキップする。
+create_vault() {
+  local dest="$1" type_dir="$2"
+  [ -d "$KIT_DIR/vault-templates/$type_dir" ] || { warn "型 $type_dir が見つかりません"; return 1; }
+  if [ -e "$dest" ] && [ -n "$(ls -A "$dest" 2>/dev/null)" ]; then
+    warn "$dest は空ではありません。vault は作りませんでした。"
+    say "  空のフォルダを指定してもう一度実行してください。"
+    return 1
+  fi
+  mkdir -p "$dest"
+  cp -R "$KIT_DIR/vault-templates/$type_dir/." "$dest/"
+  find "$dest" -name ".gitkeep" -delete 2>/dev/null || true
+  local today; today=$(date +%Y-%m-%d)
+  # ログと文脈に日付を入れる
+  if [ -f "$dest/_ログ.md" ]; then
+    printf '## %s\n\n- vault を作成しました\n' "$today" >> "$dest/_ログ.md"
+    sed -i.bak "s/^updated: $/updated: $today/" "$dest/_ログ.md" && rm -f "$dest/_ログ.md.bak"
+  fi
+  [ -f "$dest/_いまの文脈.md" ] && { sed -i.bak "s/^updated: $/updated: $today/" "$dest/_いまの文脈.md"; rm -f "$dest/_いまの文脈.md.bak"; }
+  return 0
+}
+
+VAULT_PATH="${OSK_VAULT:-}"
+VAULT_TYPE="${OSK_VAULT_TYPE:-}"
+
+# 引数からも受け取れるようにする（bash -s -- --vault ~/path --type 2）
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --vault) VAULT_PATH="$2"; shift 2 ;;
+    --type)  VAULT_TYPE="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+
+# 引数も環境変数も無く、対話できるなら聞く
+if [ -z "$VAULT_PATH" ] && [ -r /dev/tty ]; then
+  say ""
+  say "${BOLD}続けて vault（ノートの入れ物）を作りますか？${RESET}"
+  say "  作らない場合はそのまま Enter を押してください。"
+  say ""
+  say "  1) 個人のメモをためたい"
+  say "  2) 仕事のメモと議事録をためたい"
+  say "  3) 勉強したことを残したい"
+  say "  4) チームで手順書を共有したい"
+  say ""
+  printf "  番号を入力（作らないなら Enter）: "
+  read -r VAULT_TYPE < /dev/tty || VAULT_TYPE=""
+  if [ -n "$VAULT_TYPE" ]; then
+    printf "  どこに作りますか？ [%s/Documents/my-vault]: " "$HOME"
+    read -r VAULT_PATH < /dev/tty || VAULT_PATH=""
+    [ -z "$VAULT_PATH" ] && VAULT_PATH="$HOME/Documents/my-vault"
+  fi
+fi
+
+VAULT_CREATED=0
+if [ -n "$VAULT_PATH" ]; then
+  case "${VAULT_TYPE:-1}" in
+    1|個人)   TYPE_DIR="1_個人" ;;
+    2|仕事)   TYPE_DIR="2_仕事" ;;
+    3|学習)   TYPE_DIR="3_学習" ;;
+    4|チーム) TYPE_DIR="4_チーム" ;;
+    *)        TYPE_DIR="1_個人" ;;
+  esac
+  # ~ を展開
+  VAULT_PATH="${VAULT_PATH/#\~/$HOME}"
+  if create_vault "$VAULT_PATH" "$TYPE_DIR"; then
+    ok "vault を作りました: $VAULT_PATH"
+    VAULT_CREATED=1
+  fi
+fi
+
+# ── 6. 次の一手 ──────────────────────────────────────────────────────────────
 say ""
 say "${GREEN}${BOLD}インストール完了${RESET}"
 say ""
@@ -202,12 +275,24 @@ if [ "$HAS_CLAUDE" -eq 0 ]; then
   say "  ${step}. Claude Code をインストール ${CYAN}https://claude.com/product/claude-code${RESET}"
   step=$((step + 1))
 fi
-say "  ${BOLD}${step}. vault を置きたい場所でターミナルを開き、こう打つ:${RESET}"
-say ""
-say "       ${CYAN}claude${RESET}"
-say "       ${CYAN}/vault-init${RESET}"
-say ""
-say "     質問は1つだけです。あとは全部そろった状態で出てきます。"
+if [ "$VAULT_CREATED" -eq 1 ]; then
+  say "  ${BOLD}${step}. Obsidian を開いて、この vault を選ぶ:${RESET}"
+  say ""
+  say "     Obsidian を起動 → ${BOLD}「フォルダを vault として開く」${RESET} →"
+  say "     ${CYAN}$VAULT_PATH${RESET} を選ぶ"
+  step=$((step + 1))
+  say ""
+  say "  ${BOLD}${step}. 最初に ${CYAN}00_はじめに${RESET}${BOLD} を読む${RESET}"
+  say ""
+  say "${DIM}  AI に手伝わせたいときは、この vault のフォルダで claude を起動してください。${RESET}"
+else
+  say "  ${BOLD}${step}. vault を置きたい場所でターミナルを開き、こう打つ:${RESET}"
+  say ""
+  say "       ${CYAN}claude${RESET}"
+  say "       ${CYAN}/vault-init${RESET}"
+  say ""
+  say "     質問は1つだけです。あとは全部そろった状態で出てきます。"
+fi
 say ""
 say "${DIM}使えるコマンド: /vault-init（作る） /vault-guide（教わる） /vault-save（残す）"
 say "                /vault-ask（聞く）   /vault-lint（点検する）"
