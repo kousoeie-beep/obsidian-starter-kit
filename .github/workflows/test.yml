@@ -10,6 +10,8 @@ jobs:
   # ── ガード：Windows ジョブの run ブロックに日本語を書かせない ──────────────
   # PS5.1 は GitHub が書き出す一時ファイル(BOM無し)を ANSI として読むため、
   # run ブロック内の日本語が文字化けして落ちる。3回踏んだので機械で止める。
+  # 対象は shell: powershell（＝PS5.1）のジョブだけ。pwsh(PS7) は BOM 無し UTF-8 を
+  # 正しく読むので日本語を書いてよい。
   guard-no-japanese:
     name: ガード / Windows の run に日本語なし
     runs-on: ubuntu-latest
@@ -20,7 +22,7 @@ jobs:
           set -e
           bad=0
           # windows で始まるジョブ〜次のジョブ定義までを切り出し、run: の中身だけ見る
-          awk '/^  (windows-ps51|windows-pwsh7|ps-compat|oneliner-windows):/{f=1} /^  [a-z-]+:$/{if($0 !~ /^  (windows-ps51|windows-pwsh7|ps-compat|oneliner-windows):/) f=0} f' .github/workflows/test.yml \
+          awk '/^  (windows-ps51|oneliner-windows):/{f=1} /^  [a-z-]+:$/{if($0 !~ /^  (windows-ps51|oneliner-windows):/) f=0} f' .github/workflows/test.yml \
             | grep -vE '^\s+(- )?name:' \
             | grep -vE '^\s+#' \
             | grep -P '[ぁ-んァ-ヶ一-龥]' > /tmp/ja.txt || true
