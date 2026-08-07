@@ -86,6 +86,32 @@ jobs:
           test ! -f "$OSK_CLAUDE_DIR/commands/vault-init.md"
           echo OK
 
+      - name: Hermes に vault を教える（他のキーを壊さないこと）
+        run: |
+          set -e
+          FH="$GITHUB_WORKSPACE/fake-hermes"
+          ENVF="$FH/.env"
+          mkdir -p "$FH"
+          printf 'SOME_API_KEY=secret123\nOTHER_SETTING=abc\n' > "$ENVF"
+
+          # 1回目：未設定の状態から設定される
+          HERMES_HOME="$FH" OSK_HERMES=1 bash "$OSK_KIT_DIR/install.sh" --vault "$GITHUB_WORKSPACE/hv1" --type 2
+          grep -q '^OBSIDIAN_VAULT_PATH=' "$ENVF" || { echo 'vault パスが書かれていない'; exit 1; }
+          grep -q '^SOME_API_KEY=secret123$' "$ENVF" || { echo '既存キーが壊れた'; exit 1; }
+          grep -q '^OTHER_SETTING=abc$' "$ENVF" || { echo '既存キーが壊れた'; exit 1; }
+
+          # 2回目：別 vault に切り替えても行が増えない
+          HERMES_HOME="$FH" OSK_HERMES=1 bash "$OSK_KIT_DIR/install.sh" --vault "$GITHUB_WORKSPACE/hv2" --type 1
+          n=$(grep -c '^OBSIDIAN_VAULT_PATH=' "$ENVF")
+          [ "$n" -eq 1 ] || { echo "OBSIDIAN_VAULT_PATH が $n 行ある（1行であるべき）"; exit 1; }
+          grep -q 'hv2' "$ENVF" || { echo '新しい vault に切り替わっていない'; exit 1; }
+          grep -q '^SOME_API_KEY=secret123$' "$ENVF" || { echo '既存キーが壊れた'; exit 1; }
+
+          # 3回目：Hermes が無い環境では一切触らない
+          HERMES_HOME="$GITHUB_WORKSPACE/no-hermes" bash "$OSK_KIT_DIR/install.sh" --vault "$GITHUB_WORKSPACE/hv3" --type 1 > /tmp/out.txt 2>&1
+          if grep -q 'Hermes' /tmp/out.txt; then echo 'Hermes が無いのに触っている'; exit 1; fi
+          echo OK
+
       - name: 生成物の JSON と参照先が壊れていないこと
         run: |
           set -e

@@ -270,6 +270,61 @@ rename_folders() {
   done
 }
 
+# Hermes（Nous Research の AI エージェント）が入っていれば、作った vault を教える。
+#
+# Hermes の Obsidian 連携は「メモリプロバイダ」ではなく note-taking/obsidian という
+# 同梱スキルで、vault の場所は OBSIDIAN_VAULT_PATH 環境変数で決まる（$HERMES_HOME/.env に書く）。
+# 未設定だと ~/Documents/Obsidian Vault を黙って見に行き、しかも
+# 「どこを見ているか」を知らせる仕組みが無いため、明示的に設定する意味がある。
+#
+# .env には API キーなどが入っているので、OBSIDIAN_VAULT_PATH の行以外は絶対に触らない。
+link_hermes() {
+  local vault="$1"
+  local hermes_home="${HERMES_HOME:-$HOME/.hermes}"
+  [ -d "$hermes_home" ] || return 0          # Hermes を使っていなければ何もしない
+  local envfile="$hermes_home/.env"
+
+  if [ -f "$envfile" ] && grep -q "^OBSIDIAN_VAULT_PATH=" "$envfile" 2>/dev/null; then
+    local current
+    current=$(grep "^OBSIDIAN_VAULT_PATH=" "$envfile" | head -1 | cut -d= -f2- | sed 's/^"//; s/"$//')
+    if [ "$current" = "$vault" ]; then
+      ok "Hermes は既にこの vault を見ています"
+      return 0
+    fi
+    say ""
+    warn "Hermes は別の vault を見ています:"
+    say "    $current"
+    if [ "${OSK_HERMES:-}" = "1" ]; then
+      :                                       # 非対話で明示的に指定されたら切り替える
+    elif [ -r /dev/tty ]; then
+      printf "  この vault に切り替えますか？ (y/N): "
+      local ans; read -r ans < /dev/tty || ans=""
+      case "$ans" in [yY]*) ;; *) say "  そのままにしました"; return 0 ;; esac
+    else
+      return 0
+    fi
+    cp "$envfile" "$envfile.osk-backup"
+    grep -v "^OBSIDIAN_VAULT_PATH=" "$envfile" > "$envfile.tmp" && mv "$envfile.tmp" "$envfile"
+    say "  ${DIM}（元の .env は $envfile.osk-backup に退避しました）${RESET}"
+  elif [ "${OSK_HERMES:-}" != "1" ] && [ -r /dev/tty ]; then
+    say ""
+    say "${BOLD}Hermes が見つかりました。${RESET}この vault を Hermes にも教えますか？"
+    say "  ${DIM}教えると、Hermes からこの vault のノートを読み書きできます。${RESET}"
+    printf "  教える？ (Y/n): "
+    local ans; read -r ans < /dev/tty || ans=""
+    case "$ans" in [nN]*) say "  そのままにしました"; return 0 ;; esac
+  elif [ "${OSK_HERMES:-}" != "1" ]; then
+    return 0
+  fi
+
+  touch "$envfile"
+  printf 'OBSIDIAN_VAULT_PATH="%s"\n' "$vault" >> "$envfile"
+  ok "Hermes にこの vault を教えました"
+  say "  ${DIM}$envfile に OBSIDIAN_VAULT_PATH を設定${RESET}"
+  say "  ${DIM}確認: hermes を起動して「vault のファイル一覧を出して」と頼むと、"
+  say "        どこを見ているか分かります${RESET}"
+}
+
 VAULT_PATH="${OSK_VAULT:-}"
 VAULT_TYPE="${OSK_VAULT_TYPE:-}"
 FOLDER_NAMES="${OSK_FOLDERS:-}"
@@ -319,6 +374,7 @@ if [ -n "$VAULT_PATH" ]; then
   if create_vault "$VAULT_PATH" "$TYPE_DIR"; then
     ok "vault を作りました: $VAULT_PATH"
     rename_folders "$VAULT_PATH"
+    link_hermes "$VAULT_PATH"
     VAULT_CREATED=1
   fi
 fi
