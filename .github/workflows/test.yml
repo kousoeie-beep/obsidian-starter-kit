@@ -91,7 +91,7 @@ jobs:
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errs) | Out-Null
             if ($errs.Count -gt 0) { $errs | ForEach-Object { Write-Host $_.Message }; exit 1 }
           }
-          Write-Host "構文OK"
+          Write-Host "syntax OK"
 
       - name: クリーン環境でインストール
         run: ./install.ps1
@@ -99,10 +99,10 @@ jobs:
       - name: 配置されたものを確認
         run: |
           $c = $env:OSK_CLAUDE_DIR
-          if ((Get-ChildItem "$c\commands" -Filter "vault-*.md").Count -ne 5) { throw "コマンド数が違う" }
-          if ((Get-ChildItem "$c\skills" -Directory).Count -ne 3) { throw "スキル数が違う" }
-          if ((Get-ChildItem "$c\skills\vault-scaffold\references" -Filter "*.md").Count -ne 5) { throw "references が足りない" }
-          if (-not (Test-Path "$c\.obsidian-starter-kit-manifest")) { throw "マニフェストが無い" }
+          if ((Get-ChildItem "$c\commands" -Filter "vault-*.md").Count -ne 5) { throw "wrong command count" }
+          if ((Get-ChildItem "$c\skills" -Directory).Count -ne 3) { throw "wrong skill count" }
+          if ((Get-ChildItem "$c\skills\vault-scaffold\references" -Filter "*.md").Count -ne 5) { throw "missing references" }
+          if (-not (Test-Path "$c\.obsidian-starter-kit-manifest")) { throw "manifest missing" }
           Write-Host OK
 
       - name: 2回目の実行でも失敗しないこと
@@ -112,13 +112,13 @@ jobs:
         run: |
           $c = $env:OSK_CLAUDE_DIR
           Remove-Item "$c\.obsidian-starter-kit-manifest" -Force
-          Set-Content "$c\commands\vault-save.md" "自作の大事なコマンド"
-          # 別プロセスで実行する。同一プロセスだとスクリプト内の exit がこのステップごと終了させ、
-          # 「異常終了したこと」を判定できない。
+          Set-Content "$c\commands\vault-save.md" "MY-OWN-COMMAND"
+          # Run in a separate process: an in-process exit would end this step itself.
           & powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
-          if ($LASTEXITCODE -eq 0) { throw "衝突を検出できていない" }
-          if (-not ((Get-Content "$c\commands\vault-save.md" -Raw) -match "自作の大事なコマンド")) { throw "自作ファイルが壊れた" }
+          if ($LASTEXITCODE -eq 0) { throw "conflict not detected" }
+          if (-not ((Get-Content "$c\commands\vault-save.md" -Raw) -match "MY-OWN-COMMAND")) { throw "user file was clobbered" }
           Write-Host OK
+          $global:LASTEXITCODE = 0
 
       - name: 上書き後アンインストールで元に戻ること
         run: |
@@ -126,11 +126,12 @@ jobs:
           $env:OSK_FORCE = "1"
           & powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
           $env:OSK_FORCE = $null
-          if (-not ((Get-Content "$c\.obsidian-starter-kit-backup\commands\vault-save.md" -Raw) -match "自作の大事なコマンド")) { throw "退避されていない" }
+          if (-not ((Get-Content "$c\.obsidian-starter-kit-backup\commands\vault-save.md" -Raw) -match "MY-OWN-COMMAND")) { throw "backup not created" }
           & "$env:OSK_KIT_DIR\uninstall.ps1"
-          if (-not ((Get-Content "$c\commands\vault-save.md" -Raw) -match "自作の大事なコマンド")) { throw "復元されていない" }
-          if (Test-Path "$c\commands\vault-init.md") { throw "キットのコマンドが残っている" }
+          if (-not ((Get-Content "$c\commands\vault-save.md" -Raw) -match "MY-OWN-COMMAND")) { throw "restore failed" }
+          if (Test-Path "$c\commands\vault-init.md") { throw "kit command still present" }
           Write-Host OK
+          $global:LASTEXITCODE = 0
 
   # ── PowerShell 7 ──────────────────────────────────────────────────────────
   windows-pwsh7:
@@ -154,7 +155,7 @@ jobs:
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errs) | Out-Null
             if ($errs.Count -gt 0) { $errs | ForEach-Object { Write-Host $_.Message }; exit 1 }
           }
-          Write-Host "構文OK"
+          Write-Host "syntax OK"
 
       - name: クリーン環境でインストール
         run: ./install.ps1
@@ -162,20 +163,21 @@ jobs:
       - name: 配置されたものを確認
         run: |
           $c = $env:OSK_CLAUDE_DIR
-          if ((Get-ChildItem "$c\commands" -Filter "vault-*.md").Count -ne 5) { throw "コマンド数が違う" }
-          if ((Get-ChildItem "$c\skills" -Directory).Count -ne 3) { throw "スキル数が違う" }
-          if (-not (Test-Path "$c\.obsidian-starter-kit-manifest")) { throw "マニフェストが無い" }
+          if ((Get-ChildItem "$c\commands" -Filter "vault-*.md").Count -ne 5) { throw "wrong command count" }
+          if ((Get-ChildItem "$c\skills" -Directory).Count -ne 3) { throw "wrong skill count" }
+          if (-not (Test-Path "$c\.obsidian-starter-kit-manifest")) { throw "manifest missing" }
           Write-Host OK
 
       - name: 他人の同名コマンドを上書きしないこと
         run: |
           $c = $env:OSK_CLAUDE_DIR
           Remove-Item "$c\.obsidian-starter-kit-manifest" -Force
-          Set-Content "$c\commands\vault-save.md" "自作の大事なコマンド"
-          # 別プロセスで実行（同一プロセスだと exit がステップごと終了させてしまう）
+          Set-Content "$c\commands\vault-save.md" "MY-OWN-COMMAND"
+          # Run in a separate process (an in-process exit would end this step).
           & pwsh -NoProfile -File ./install.ps1
-          if ($LASTEXITCODE -eq 0) { throw "衝突を検出できていない" }
+          if ($LASTEXITCODE -eq 0) { throw "conflict not detected" }
           Write-Host OK
+          $global:LASTEXITCODE = 0
 
   # ── PowerShell 5.1 互換性の静的解析 ───────────────────────────────────────
   ps-compat:
