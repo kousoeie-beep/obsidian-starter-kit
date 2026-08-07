@@ -114,7 +114,8 @@ jobs:
           test -f "$V/00_はじめに.md" && test -f "$V/_ログ.md" || { echo '不足分が足されていない'; exit 1; }
 
           # 勝手にフォルダを増やしていないこと（Templates 以外）
-          n=$(find "$V" -maxdepth 1 -type d -not -name "." -not -name ".obsidian" | wc -l | tr -d ' ')
+          # -mindepth 1 が無いと $V 自身が数に入る
+          n=$(find "$V" -mindepth 1 -maxdepth 1 -type d -not -name ".obsidian" | wc -l | tr -d ' ')
           [ "$n" -eq 3 ] || { echo "フォルダ数が $n（私のメモ/仕事/Templates の3つであるべき）"; exit 1; }
 
           # 再実行しても二重に足さないこと
