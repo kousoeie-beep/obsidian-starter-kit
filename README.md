@@ -41,9 +41,33 @@ curl -fsSL https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/
 > **Claude Code は無くても vault は作れます。** AI に手伝わせたくなったら、
 > その vault のフォルダで `claude` を起動してください。`/vault-guide` `/vault-save` などが使えます。
 
+### フォルダ名は自分で決められます
+
+型を選んだあと、フォルダ名を1つずつ聞かれます。**そのままでよければ Enter** を押していってください。
+
+```
+フォルダ名を変えますか？
+  そのままでよければ Enter を押していってください。
+  先頭の番号（並び順を固定するためのもの）は自動で付きます。
+
+  01_受信箱 → インボックス
+  02_議事録 → MTG
+  03_案件 →
+  04_手順書 → ノウハウ
+  05_人と組織 →
+```
+
+**番号は自動で付き直す**ので、名前だけ入力すれば大丈夫です。
+Obsidian の設定（新規ノートの作成先・デイリーノートの保存先）と `00_はじめに.md` の表も、
+**自動で新しい名前に追従します**。
+
+> あとから Obsidian 上でフォルダ名を変えると、この追従が起きません。
+> 変えたくなったら、その vault で `claude` を起動して「フォルダ名を変えたい」と言ってください。
+> 設定の書き換えまで面倒を見ます。
+
 > 聞かれずに一気に作りたい場合は、パスと型を渡せます。
 > ```bash
-> curl -fsSL .../install.sh | bash -s -- --vault ~/Documents/my-vault --type 2
+> curl -fsSL .../install.sh | bash -s -- --vault ~/Documents/my-vault --type 2 --folders "インボックス,MTG,案件,ノウハウ,連絡先"
 > ```
 
 > どちらも [git](https://git-scm.com/) が必要です。入っていなければインストーラが案内します。

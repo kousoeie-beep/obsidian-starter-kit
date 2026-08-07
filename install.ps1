@@ -203,13 +203,60 @@ function New-Vault {
     return $true
 }
 
+# フォルダ名を変える。番号プレフィックスは保ち、名前部分だけ差し替える。
+# リネームしたら .obsidian の参照と 00_はじめに.md の表も追従させること。
+# 怠ると「新規ノートの作成先」が存在しないフォルダを指したまま黙って壊れる。
+function Rename-Folders {
+    param($Dest)
+    $dirs = @(Get-ChildItem $Dest -Directory | Where-Object { $_.Name -match '^\d\d_' } | Sort-Object Name)
+    if ($dirs.Count -eq 0) { return }
+
+    $newnames = @()
+    if ($FolderNames) {
+        $newnames = $FolderNames -split ','
+    } elseif (-not $env:CI) {
+        Say ""
+        Say "フォルダ名を変えますか？"
+        Say "  そのままでよければ Enter を押していってください。"
+        Say "  先頭の番号（並び順を固定するためのもの）は自動で付きます。"
+        Say ""
+        foreach ($d in $dirs) { $newnames += (Read-Host "  $($d.Name) → ") }
+    } else { return }
+
+    for ($i = 0; $i -lt $dirs.Count; $i++) {
+        $old = $dirs[$i].Name
+        $new = if ($i -lt $newnames.Count) { $newnames[$i].Trim() } else { '' }
+        if (-not $new) { continue }
+        $prefix = $old.Split('_')[0]
+        if ($new -notmatch '^\d\d_') { $new = "${prefix}_$new" }
+        if ($new -eq $old) { continue }
+        if (Test-Path (Join-Path $Dest $new)) { Warn "$new は既にあります。$old はそのままにしました"; continue }
+        Rename-Item (Join-Path $Dest $old) $new
+
+        foreach ($jf in @('app.json','daily-notes.json','graph.json')) {
+            $p = Join-Path (Join-Path $Dest '.obsidian') $jf
+            if (Test-Path $p) {
+                (Get-Content $p -Raw).Replace("`"$old`"", "`"$new`"").Replace("path:$old", "path:$new") |
+                    Set-Content $p -NoNewline -Encoding UTF8
+            }
+        }
+        $intro = Join-Path $Dest '00_はじめに.md'
+        if (Test-Path $intro) {
+            (Get-Content $intro -Raw).Replace("``$old``", "``$new``") | Set-Content $intro -NoNewline -Encoding UTF8
+        }
+        Ok "  $old → $new"
+    }
+}
+
 $VaultPath = $env:OSK_VAULT
 $VaultType = $env:OSK_VAULT_TYPE
+$FolderNames = $env:OSK_FOLDERS
 
-# 引数からも受け取る（-Vault <path> -Type <n>）
+# 引数からも受け取る（--vault <path> --type <n> --folders "A,B,C"）
 for ($i = 0; $i -lt $args.Count; $i++) {
     if ($args[$i] -in @('--vault','-Vault')) { $VaultPath = $args[$i+1]; $i++ }
     elseif ($args[$i] -in @('--type','-Type')) { $VaultType = $args[$i+1]; $i++ }
+    elseif ($args[$i] -in @('--folders','-Folders')) { $FolderNames = $args[$i+1]; $i++ }
 }
 
 # 対話（irm | iex でも Read-Host は使える）
@@ -239,6 +286,7 @@ if ($VaultPath) {
     }
     if (New-Vault $VaultPath $typeDir) {
         Ok "vault を作りました: $VaultPath"
+        Rename-Folders $VaultPath
         $VaultCreated = $true
     }
 }

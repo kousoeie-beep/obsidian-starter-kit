@@ -212,14 +212,75 @@ create_vault() {
   return 0
 }
 
+# フォルダ名を変える。番号プレフィックスは保ち、名前部分だけ差し替える。
+# リネームしたら .obsidian の参照と 00_はじめに.md の表も追従させる。
+# ここを怠ると「新規ノートの作成先」や「デイリーノートの保存先」が
+# 存在しないフォルダを指したままになり、Obsidian 側で黙って壊れる。
+rename_folders() {
+  local dest="$1"
+  local dirs=() d
+  while IFS= read -r d; do dirs+=("$(basename "$d")"); done \
+    < <(find "$dest" -maxdepth 1 -type d -name "[0-9][0-9]_*" | sort)
+  [ "${#dirs[@]}" -eq 0 ] && return 0
+
+  local newnames=()
+  if [ -n "${FOLDER_NAMES:-}" ]; then
+    IFS=',' read -ra newnames <<< "$FOLDER_NAMES"
+  elif [ -r /dev/tty ]; then
+    say ""
+    say "${BOLD}フォルダ名を変えますか？${RESET}"
+    say "  ${DIM}そのままでよければ Enter を押していってください。${RESET}"
+    say "  ${DIM}先頭の番号（並び順を固定するためのもの）は自動で付きます。${RESET}"
+    say ""
+    local ans
+    for d in "${dirs[@]}"; do
+      printf "  %s → " "$d"
+      read -r ans < /dev/tty || ans=""
+      newnames+=("$ans")
+    done
+  else
+    return 0
+  fi
+
+  local i=0 new prefix old_esc new_esc
+  for d in "${dirs[@]}"; do
+    new="${newnames[$i]:-}"
+    i=$((i + 1))
+    [ -z "$new" ] && continue
+    prefix="${d%%_*}"
+    case "$new" in [0-9][0-9]_*) ;; *) new="${prefix}_${new}" ;; esac
+    [ "$new" = "$d" ] && continue
+    [ -e "$dest/$new" ] && { warn "$new は既にあります。$d はそのままにしました"; continue; }
+    mv "$dest/$d" "$dest/$new"
+
+    # .obsidian の参照を追従
+    old_esc=$(printf '%s' "$d" | sed 's/[&/\]/\\&/g')
+    new_esc=$(printf '%s' "$new" | sed 's/[&/\]/\\&/g')
+    for jf in app.json daily-notes.json graph.json; do
+      [ -f "$dest/.obsidian/$jf" ] || continue
+      sed -i.bak "s/\"$old_esc\"/\"$new_esc\"/g; s/path:$old_esc/path:$new_esc/g" "$dest/.obsidian/$jf"
+      rm -f "$dest/.obsidian/$jf.bak"
+    done
+    # 00_はじめに.md の表も追従
+    if [ -f "$dest/00_はじめに.md" ]; then
+      sed -i.bak "s/\`$old_esc\`/\`$new_esc\`/g" "$dest/00_はじめに.md"
+      rm -f "$dest/00_はじめに.md.bak"
+    fi
+    ok "  $d → $new"
+  done
+}
+
 VAULT_PATH="${OSK_VAULT:-}"
 VAULT_TYPE="${OSK_VAULT_TYPE:-}"
+FOLDER_NAMES="${OSK_FOLDERS:-}"
 
-# 引数からも受け取れるようにする（bash -s -- --vault ~/path --type 2）
+# 引数からも受け取れるようにする
+#   bash -s -- --vault ~/path --type 2 --folders "受信箱,MTG,案件,手順,人"
 while [ $# -gt 0 ]; do
   case "$1" in
-    --vault) VAULT_PATH="$2"; shift 2 ;;
-    --type)  VAULT_TYPE="$2"; shift 2 ;;
+    --vault)   VAULT_PATH="$2"; shift 2 ;;
+    --type)    VAULT_TYPE="$2"; shift 2 ;;
+    --folders) FOLDER_NAMES="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -257,6 +318,7 @@ if [ -n "$VAULT_PATH" ]; then
   VAULT_PATH="${VAULT_PATH/#\~/$HOME}"
   if create_vault "$VAULT_PATH" "$TYPE_DIR"; then
     ok "vault を作りました: $VAULT_PATH"
+    rename_folders "$VAULT_PATH"
     VAULT_CREATED=1
   fi
 fi

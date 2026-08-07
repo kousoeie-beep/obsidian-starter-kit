@@ -271,6 +271,20 @@ jobs:
           for f in "$GITHUB_WORKSPACE/ol-vault"/.obsidian/*.json; do node -e "JSON.parse(require(\"fs\").readFileSync(process.argv[1],\"utf8\"))" "$f"; done
           echo OK
 
+      - name: フォルダ名を変えても設定が追従すること
+        run: |
+          set -e
+          V="$GITHUB_WORKSPACE/renamed-vault"
+          bash "$OSK_KIT_DIR/install.sh" --vault "$V" --type 2 --folders "インボックス,MTG,案件,ノウハウ,連絡先"
+          nff=$(node -pe "JSON.parse(require('fs').readFileSync('$V/.obsidian/app.json','utf8')).newFileFolderPath")
+          test -d "$V/$nff" || { echo "newFileFolderPath が存在しない: $nff"; exit 1; }
+          df=$(node -pe "JSON.parse(require('fs').readFileSync('$V/.obsidian/daily-notes.json','utf8')).folder")
+          test -d "$V/$df" || { echo "daily.folder が存在しない: $df"; exit 1; }
+          test -d "$V/01_インボックス"
+          test -d "$V/02_MTG"
+          grep -q '01_インボックス' "$V/00_はじめに.md"
+          echo OK
+
       - name: 入ったか確認
         run: |
           set -e
