@@ -86,6 +86,42 @@ jobs:
           test ! -f "$OSK_CLAUDE_DIR/commands/vault-init.md"
           echo OK
 
+      - name: 既存 vault に足りないものだけ足す（既存資産を壊さないこと）
+        run: |
+          set -e
+          export OSK_CLAUDE_DIR="$GITHUB_WORKSPACE/aug-claude"
+          V="$GITHUB_WORKSPACE/existing-vault"
+          mkdir -p "$V/.obsidian" "$V/私のメモ" "$V/仕事"
+          echo '{"alwaysUpdateLinks":true,"customSetting":"大事な既存設定"}' > "$V/.obsidian/app.json"
+          printf '# 既存のノート\n\n消えたら困る中身\n' > "$V/私のメモ/大事なノート.md"
+          printf '# 仕事メモ\n\n既存の内容\n' > "$V/仕事/メモ.md"
+
+          OSK_YES=1 bash "$OSK_KIT_DIR/install.sh" --vault "$V" --type 2
+
+          # 既存の中身が無傷であること
+          grep -q '消えたら困る中身' "$V/私のメモ/大事なノート.md" || { echo '既存ノートが壊れた'; exit 1; }
+          grep -q '既存の内容' "$V/仕事/メモ.md" || { echo '既存ノートが壊れた'; exit 1; }
+          test -d "$V/私のメモ" && test -d "$V/仕事" || { echo '既存フォルダが消えた'; exit 1; }
+
+          # 既存の設定値が保たれ、無かったキーだけ補われていること
+          node -e '
+            const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+            if(j.customSetting!=="大事な既存設定"){console.log("既存設定が上書きされた");process.exit(1)}
+            if(!j.attachmentFolderPath){console.log("不足キーが補われていない");process.exit(1)}
+          ' "$V/.obsidian/app.json"
+
+          # 足りないものが追加されていること
+          test -f "$V/00_はじめに.md" && test -f "$V/_ログ.md" || { echo '不足分が足されていない'; exit 1; }
+
+          # 勝手にフォルダを増やしていないこと（Templates 以外）
+          n=$(find "$V" -maxdepth 1 -type d -not -name "." -not -name ".obsidian" | wc -l | tr -d ' ')
+          [ "$n" -eq 3 ] || { echo "フォルダ数が $n（私のメモ/仕事/Templates の3つであるべき）"; exit 1; }
+
+          # 再実行しても二重に足さないこと
+          OSK_YES=1 bash "$OSK_KIT_DIR/install.sh" --vault "$V" --type 2 > /tmp/again.txt 2>&1
+          grep -q '揃っています' /tmp/again.txt || { echo '冪等でない'; exit 1; }
+          echo OK
+
       - name: Hermes に vault を教える（他のキーを壊さないこと）
         run: |
           set -e

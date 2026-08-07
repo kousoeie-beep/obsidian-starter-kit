@@ -20,6 +20,48 @@ curl -fsSL https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/
 [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; iex ((irm https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.ps1).TrimStart([char]0xFEFF))
 ```
 
+### すでに Obsidian を使っている場合
+
+**いま使っている vault を検知して、足りないものだけ足せます。** 一から作り直す必要はありません。
+
+```
+すでに Obsidian を使っていますね。どうしますか？
+  何もしない場合はそのまま Enter を押してください。
+
+  n) 新しく vault を作る
+
+  または、いま使っている vault に足りないものだけ足す:
+  1) /Users/you/work-vault
+  2) /Users/you/private-vault
+
+  番号か n を入力（何もしないなら Enter）:
+```
+
+番号を選ぶと、**何が足りないかを先に見せてから**確認します。
+
+```
+この vault に足りないもの:
+    00_はじめに.md
+    _ログ.md
+    _いまの文脈.md
+    Templates/ に 5 件（デイリーノート.md 議事録.md ...）
+    すべてのノート.base
+
+  既にあるノート・フォルダ・設定は一切変更しません。
+  足しますか？ (Y/n):
+```
+
+**既存資産は壊しません。**
+
+| | |
+|---|---|
+| 既にあるノート・フォルダ | **一切触りません** |
+| フォルダ構成 | **勝手に増やしません**（`Templates` だけは機能に必要なので作ります） |
+| `.obsidian` の設定 | **既存の値を優先**し、無いキーだけ補います。バックアップも取ります |
+| 再実行 | 二重に足しません（「必要なものが揃っています」と出て終わります） |
+
+---
+
 これだけです。実行すると**用途を番号で聞かれる**ので、選ぶと vault ができます。
 
 ```
