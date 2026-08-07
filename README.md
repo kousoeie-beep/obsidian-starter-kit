@@ -123,14 +123,16 @@ Obsidian の作者（kepano / Steph Ango）が公開している公式スキル�
 
 ## 動作確認の状況
 
+[CI](../../actions) で毎回 3 つの OS を通しています。
+
 | 環境 | 状況 |
 |---|---|
-| **macOS** | 確認済み。クリーンな状態から本番 URL 経由で導入・更新・衝突検出・アンインストール復元まで通過 |
-| **Linux** | 確認済み（Debian のクリーンコンテナで 19 項目） |
-| **Windows** | **未確認。** PowerShell 5.1 / 7 向けの対策（TLS 1.2・実行ポリシー・パス区切り）は入れていますが、実機での実行検証は取れていません |
+| **Windows** | 確認済み。**Windows PowerShell 5.1**（Windows 標準）と **PowerShell 7** の両方で、導入・再実行・衝突検出・アンインストール復元まで通過。PSScriptAnalyzer による 5.1 互換性チェックも通過 |
+| **macOS** | 確認済み。クリーンな状態から導入・更新・衝突検出・アンインストール復元まで通過 |
+| **Linux** | 確認済み（Debian のクリーンコンテナで 19 項目 ＋ CI） |
 | **Obsidian 本体** | 確認済み。生成した `.obsidian/` 設定 13 項目が Obsidian に受理され、アプリ終了後も保持されることを実機で確認 |
 
-Windows でうまくいかない場合は、[examples](examples/) の vault をダウンロードして
+うまくいかない場合は、[examples](examples/) の vault をダウンロードして
 Obsidian の「フォルダを vault として開く」で選べば、同じ状態から始められます。
 
 ---
