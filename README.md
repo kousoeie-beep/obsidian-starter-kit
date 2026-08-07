@@ -137,10 +137,12 @@ Obsidian の作者（kepano / Steph Ango）が公開している公式スキル�
 
 ## 動作確認の状況
 
-[CI](../../actions) で毎回 3 つの OS を通しています。
+[CI](../../actions) で毎回 8 ジョブを通しています。**このページに載っている 1 行そのもの**を、
+checkout していない素の環境で公開 URL から実行して検証しています。
 
-| 環境 | 状況 |
+| 検証 | 状況 |
 |---|---|
+| **1行インストール** | 確認済み。`curl \| bash`（Ubuntu / macOS）と `irm`（Windows PowerShell 5.1）を、**公開 URL から素の環境で実行**して通過 |
 | **Windows** | 確認済み。**Windows PowerShell 5.1**（Windows 標準）と **PowerShell 7** の両方で、導入・再実行・衝突検出・アンインストール復元まで通過。PSScriptAnalyzer による 5.1 互換性チェックも通過 |
 | **macOS** | 確認済み。クリーンな状態から導入・更新・衝突検出・アンインストール復元まで通過 |
 | **Linux** | 確認済み（Debian のクリーンコンテナで 19 項目 ＋ CI） |
