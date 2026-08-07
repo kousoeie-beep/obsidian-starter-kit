@@ -7,6 +7,31 @@ on:
   workflow_dispatch:
 
 jobs:
+  # ── ガード：Windows ジョブの run ブロックに日本語を書かせない ──────────────
+  # PS5.1 は GitHub が書き出す一時ファイル(BOM無し)を ANSI として読むため、
+  # run ブロック内の日本語が文字化けして落ちる。3回踏んだので機械で止める。
+  guard-no-japanese:
+    name: ガード / Windows の run に日本語なし
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Windows ジョブの run ブロックを検査
+        run: |
+          set -e
+          bad=0
+          # windows で始まるジョブ〜次のジョブ定義までを切り出し、run: の中身だけ見る
+          awk '/^  (windows-ps51|windows-pwsh7|ps-compat|oneliner-windows):/{f=1} /^  [a-z-]+:$/{if($0 !~ /^  (windows-ps51|windows-pwsh7|ps-compat|oneliner-windows):/) f=0} f' .github/workflows/test.yml \
+            | grep -vE '^\s+(- )?name:' \
+            | grep -vE '^\s+#' \
+            | grep -P '[ぁ-んァ-ヶ一-龥]' > /tmp/ja.txt || true
+          if [ -s /tmp/ja.txt ]; then
+            echo 'Windows ジョブの run ブロックに日本語があります（PS5.1 で文字化けします）:'
+            cat /tmp/ja.txt
+            bad=1
+          fi
+          [ $bad -eq 0 ] && echo OK
+          exit $bad
+
   # ── Mac / Linux ────────────────────────────────────────────────────────────
   posix:
     name: ${{ matrix.os }} / install.sh
@@ -268,10 +293,15 @@ jobs:
 
       - name: build a vault in one line
         run: |
-          & "$env:OSK_KIT_DIR\install.ps1" --vault "$env:GITHUB_WORKSPACE\ol-vault" --type 2
-          if (-not (Test-Path "$env:GITHUB_WORKSPACE\ol-vault\02_議事録")) { throw "vault folder missing" }
-          if (-not (Test-Path "$env:GITHUB_WORKSPACE\ol-vault\00_はじめに.md")) { throw "intro note missing" }
-          if (-not (Test-Path "$env:GITHUB_WORKSPACE\ol-vault\_ログ.md")) { throw "log missing" }
+          # Do not reference Japanese file names here: PS5.1 reads this temp file as ANSI
+          # and the names get mangled. Verify by counts and ASCII-only paths instead.
+          $v = "$env:GITHUB_WORKSPACE\ol-vault"
+          & "$env:OSK_KIT_DIR\install.ps1" --vault $v --type 2
+          if (-not (Test-Path $v)) { throw "vault not created" }
+          if ((Get-ChildItem $v -Directory).Count -lt 6) { throw "not enough folders" }
+          if ((Get-ChildItem $v -Filter "*.md").Count -lt 3) { throw "not enough notes" }
+          if (-not (Test-Path "$v\Templates")) { throw "Templates missing" }
+          if (-not (Test-Path "$v\.obsidian\app.json")) { throw "obsidian config missing" }
           Write-Host OK
           $global:LASTEXITCODE = 0
 
