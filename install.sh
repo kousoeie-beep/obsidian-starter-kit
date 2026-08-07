@@ -270,6 +270,124 @@ rename_folders() {
   done
 }
 
+# すでにある vault を Obsidian の登録情報から拾う。
+# Obsidian は開いたことのある vault を obsidian.json に記録している。
+list_existing_vaults() {
+  node -e '
+const fs=require("fs"), os=require("os"), path=require("path");
+const home=os.homedir();
+const cands=[
+  path.join(home,"Library/Application Support/obsidian/obsidian.json"),
+  path.join(home,".config/obsidian/obsidian.json"),
+  path.join(process.env.APPDATA||"","obsidian","obsidian.json"),
+];
+for(const p of cands){
+  try{
+    if(!fs.existsSync(p)) continue;
+    const j=JSON.parse(fs.readFileSync(p,"utf8"));
+    for(const v of Object.values(j.vaults||{})){
+      if(v && v.path && fs.existsSync(v.path)) console.log(v.path);
+    }
+    break;
+  }catch(e){}
+}' 2>/dev/null
+}
+
+# 既存 vault に「足りないものだけ」足す。既存のノートと設定は絶対に壊さない。
+augment_vault() {
+  local dest="$1" type_dir="$2"
+  local src="$KIT_DIR/vault-templates/$type_dir"
+  [ -d "$src" ] || { warn "型 $type_dir が見つかりません"; return 1; }
+
+  # 何が足りないかを先に調べる
+  local add_notes=() add_tmpls=() add_bases=() f base
+  for f in 00_はじめに.md _ログ.md _いまの文脈.md; do
+    [ -f "$dest/$f" ] || add_notes+=("$f")
+  done
+  if [ -d "$src/Templates" ]; then
+    for f in "$src/Templates"/*.md; do
+      [ -f "$f" ] || continue
+      base=$(basename "$f")
+      [ -f "$dest/Templates/$base" ] || add_tmpls+=("$base")
+    done
+  fi
+  for f in "$src"/*.base; do
+    [ -f "$f" ] || continue
+    base=$(basename "$f")
+    [ -f "$dest/$base" ] || add_bases+=("$base")
+  done
+
+  # 何も足りなければ終わり
+  if [ "${#add_notes[@]}" -eq 0 ] && [ "${#add_tmpls[@]}" -eq 0 ] && [ "${#add_bases[@]}" -eq 0 ]; then
+    ok "この vault には必要なものが揃っています。何も足しませんでした"
+    return 0
+  fi
+
+  # 足すものを見せて確認する
+  say ""
+  say "${BOLD}この vault に足りないもの:${RESET}"
+  [ "${#add_notes[@]}" -gt 0 ] && for f in "${add_notes[@]}"; do say "    $f"; done
+  [ "${#add_tmpls[@]}" -gt 0 ] && say "    Templates/ に ${#add_tmpls[@]} 件（${add_tmpls[*]}）"
+  [ "${#add_bases[@]}" -gt 0 ] && for f in "${add_bases[@]}"; do say "    $f"; done
+  say ""
+  say "  ${DIM}既にあるノート・フォルダ・設定は一切変更しません。${RESET}"
+  if [ "${OSK_YES:-}" != "1" ]; then
+    if [ -r /dev/tty ]; then
+      printf "  足しますか？ (Y/n): "
+      local ans; read -r ans < /dev/tty || ans=""
+      case "$ans" in [nN]*) say "  何もしませんでした"; return 0 ;; esac
+    else
+      say "  ${DIM}（非対話のため何もしませんでした。OSK_YES=1 で実行すると足します）${RESET}"
+      return 0
+    fi
+  fi
+
+  local today; today=$(date +%Y-%m-%d)
+  for f in "${add_notes[@]}"; do
+    cp "$src/$f" "$dest/$f"
+    if [ "$f" = "_ログ.md" ]; then
+      printf '## %s\n\n- このキットの不足分を追加しました\n' "$today" >> "$dest/$f"
+    fi
+    sed -i.bak "s/^updated: $/updated: $today/" "$dest/$f" 2>/dev/null && rm -f "$dest/$f.bak"
+  done
+  if [ "${#add_tmpls[@]}" -gt 0 ]; then
+    mkdir -p "$dest/Templates"
+    for f in "${add_tmpls[@]}"; do cp "$src/Templates/$f" "$dest/Templates/$f"; done
+  fi
+  for f in "${add_bases[@]}"; do cp "$src/$f" "$dest/$f"; done
+
+  # .obsidian は「既存の値を優先し、無いキーだけ足す」マージにする
+  merge_obsidian_config "$dest" "$src"
+  ok "足りないものを追加しました"
+}
+
+# .obsidian/*.json をマージ。既存の値は絶対に変えず、無いキーだけ補う。
+merge_obsidian_config() {
+  local dest="$1" src="$2"
+  mkdir -p "$dest/.obsidian"
+  local jf
+  for jf in core-plugins.json app.json templates.json; do
+    [ -f "$src/.obsidian/$jf" ] || continue
+    if [ ! -f "$dest/.obsidian/$jf" ]; then
+      cp "$src/.obsidian/$jf" "$dest/.obsidian/$jf"
+      continue
+    fi
+    cp "$dest/.obsidian/$jf" "$dest/.obsidian/$jf.osk-backup"
+    node -e '
+const fs=require("fs");
+const [dst,srcf]=process.argv.slice(1);
+try{
+  const cur=JSON.parse(fs.readFileSync(dst,"utf8"));
+  const add=JSON.parse(fs.readFileSync(srcf,"utf8"));
+  let changed=false;
+  for(const k of Object.keys(add)){
+    if(!(k in cur)){ cur[k]=add[k]; changed=true; }   // 既存の値は上書きしない
+  }
+  if(changed) fs.writeFileSync(dst, JSON.stringify(cur,null,2));
+}catch(e){}' "$dest/.obsidian/$jf" "$src/.obsidian/$jf"
+  done
+}
+
 # Hermes（Nous Research の AI エージェント）が入っていれば、作った vault を教える。
 #
 # Hermes の Obsidian 連携は「メモリプロバイダ」ではなく note-taking/obsidian という
@@ -340,24 +458,74 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+AUGMENT_MODE=0
+
 # 引数も環境変数も無く、対話できるなら聞く
 if [ -z "$VAULT_PATH" ] && [ -r /dev/tty ]; then
+  # すでに Obsidian を使っているなら、既存 vault を選べるようにする
+  EXISTING=()
+  while IFS= read -r line; do [ -n "$line" ] && EXISTING+=("$line"); done < <(list_existing_vaults)
+
   say ""
-  say "${BOLD}続けて vault（ノートの入れ物）を作りますか？${RESET}"
-  say "  作らない場合はそのまま Enter を押してください。"
-  say ""
-  say "  1) 個人のメモをためたい"
-  say "  2) 仕事のメモと議事録をためたい"
-  say "  3) 勉強したことを残したい"
-  say "  4) チームで手順書を共有したい"
-  say ""
-  printf "  番号を入力（作らないなら Enter）: "
-  read -r VAULT_TYPE < /dev/tty || VAULT_TYPE=""
-  if [ -n "$VAULT_TYPE" ]; then
-    printf "  どこに作りますか？ [%s/Documents/my-vault]: " "$HOME"
-    read -r VAULT_PATH < /dev/tty || VAULT_PATH=""
-    [ -z "$VAULT_PATH" ] && VAULT_PATH="$HOME/Documents/my-vault"
+  if [ "${#EXISTING[@]}" -gt 0 ]; then
+    say "${BOLD}すでに Obsidian を使っていますね。${RESET}どうしますか？"
+    say "  ${DIM}何もしない場合はそのまま Enter を押してください。${RESET}"
+    say ""
+    say "  ${BOLD}n) 新しく vault を作る${RESET}"
+    say ""
+    say "  ${BOLD}または、いま使っている vault に足りないものだけ足す:${RESET}"
+    vault_i=1
+    for v in "${EXISTING[@]}"; do
+      say "  $vault_i) $v"
+      vault_i=$((vault_i + 1))
+    done
+    say ""
+    printf "  番号か n を入力（何もしないなら Enter）: "
+    read -r CHOICE < /dev/tty || CHOICE=""
+    case "$CHOICE" in
+      "") : ;;
+      [nN]*) : ;;   # 新規作成へ進む（下の分岐で型を聞く）
+      *[!0-9]*) warn "番号として読めませんでした。何もしません" ;;
+      *)
+        idx=$((CHOICE - 1))
+        if [ "$idx" -ge 0 ] && [ "$idx" -lt "${#EXISTING[@]}" ]; then
+          VAULT_PATH="${EXISTING[$idx]}"
+          AUGMENT_MODE=1
+        else
+          warn "その番号の vault はありません。何もしません"
+        fi
+        ;;
+    esac
+  else
+    CHOICE="n"
   fi
+
+  # 新規作成の場合だけ型と場所を聞く
+  WANT_NEW=0
+  case "$CHOICE" in [nN]*) WANT_NEW=1 ;; esac
+  if [ "$AUGMENT_MODE" -eq 0 ] && [ "$WANT_NEW" -eq 1 ]; then
+    say ""
+    say "${BOLD}どんな vault を作りますか？${RESET}"
+    say ""
+    say "  1) 個人のメモをためたい"
+    say "  2) 仕事のメモと議事録をためたい"
+    say "  3) 勉強したことを残したい"
+    say "  4) チームで手順書を共有したい"
+    say ""
+    printf "  番号を入力（やめるなら Enter）: "
+    read -r VAULT_TYPE < /dev/tty || VAULT_TYPE=""
+    if [ -n "$VAULT_TYPE" ]; then
+      printf "  どこに作りますか？ [%s/Documents/my-vault]: " "$HOME"
+      read -r VAULT_PATH < /dev/tty || VAULT_PATH=""
+      [ -z "$VAULT_PATH" ] && VAULT_PATH="$HOME/Documents/my-vault"
+    fi
+  fi
+fi
+
+# 引数で既存 vault を指定された場合も検知する（--vault が既に vault なら足すモード）
+if [ -n "$VAULT_PATH" ] && [ "$AUGMENT_MODE" -eq 0 ]; then
+  expanded="${VAULT_PATH/#\~/$HOME}"
+  [ -d "$expanded/.obsidian" ] && { AUGMENT_MODE=1; VAULT_PATH="$expanded"; }
 fi
 
 VAULT_CREATED=0
@@ -369,9 +537,17 @@ if [ -n "$VAULT_PATH" ]; then
     4|チーム) TYPE_DIR="4_チーム" ;;
     *)        TYPE_DIR="1_個人" ;;
   esac
-  # ~ を展開
   VAULT_PATH="${VAULT_PATH/#\~/$HOME}"
-  if create_vault "$VAULT_PATH" "$TYPE_DIR"; then
+
+  if [ "$AUGMENT_MODE" -eq 1 ]; then
+    # 既存 vault：足りないものだけ足す。フォルダ構成は既存を尊重し、勝手に増やさない
+    say ""
+    say "${BOLD}既にある vault を調べます:${RESET} $VAULT_PATH"
+    if augment_vault "$VAULT_PATH" "$TYPE_DIR"; then
+      link_hermes "$VAULT_PATH"
+      VAULT_CREATED=2
+    fi
+  elif create_vault "$VAULT_PATH" "$TYPE_DIR"; then
     ok "vault を作りました: $VAULT_PATH"
     rename_folders "$VAULT_PATH"
     link_hermes "$VAULT_PATH"
@@ -393,7 +569,18 @@ if [ "$HAS_CLAUDE" -eq 0 ]; then
   say "  ${step}. Claude Code をインストール ${CYAN}https://claude.com/product/claude-code${RESET}"
   step=$((step + 1))
 fi
-if [ "$VAULT_CREATED" -eq 1 ]; then
+if [ "$VAULT_CREATED" -eq 2 ]; then
+  say "  ${BOLD}${step}. Obsidian でこの vault を開き直す:${RESET}"
+  say ""
+  say "     ${CYAN}$VAULT_PATH${RESET}"
+  say ""
+  say "     ${DIM}開いている場合は、一度閉じて開き直すと設定が反映されます。${RESET}"
+  step=$((step + 1))
+  say ""
+  say "  ${BOLD}${step}. 追加された ${CYAN}00_はじめに${RESET}${BOLD} を読む${RESET}"
+  say ""
+  say "${DIM}  既にあったノート・フォルダ・設定は変更していません。${RESET}"
+elif [ "$VAULT_CREATED" -eq 1 ]; then
   say "  ${BOLD}${step}. Obsidian を開いて、この vault を選ぶ:${RESET}"
   say ""
   say "     Obsidian を起動 → ${BOLD}「フォルダを vault として開く」${RESET} →"

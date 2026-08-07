@@ -203,6 +203,104 @@ function New-Vault {
     return $true
 }
 
+# すでにある vault を Obsidian の登録情報から拾う。
+function Get-ExistingVaults {
+    $cands = @(
+        (Join-Path $env:APPDATA 'obsidian\obsidian.json'),
+        (Join-Path $HOME 'Library/Application Support/obsidian/obsidian.json'),
+        (Join-Path $HOME '.config/obsidian/obsidian.json')
+    )
+    foreach ($p in $cands) {
+        if (-not (Test-Path $p)) { continue }
+        try {
+            $j = Get-Content $p -Raw | ConvertFrom-Json
+            $out = @()
+            foreach ($v in $j.vaults.PSObject.Properties) {
+                $path = $v.Value.path
+                if ($path -and (Test-Path $path)) { $out += $path }
+            }
+            return $out
+        } catch { return @() }
+    }
+    return @()
+}
+
+# 既存 vault に「足りないものだけ」足す。既存のノートと設定は絶対に壊さない。
+function Update-Vault {
+    param($Dest, $TypeDir)
+    $src = Join-Path (Join-Path $KitDir 'vault-templates') $TypeDir
+    if (-not (Test-Path $src)) { Warn "型 $TypeDir が見つかりません"; return $false }
+
+    $addNotes = @(); $addTmpls = @(); $addBases = @()
+    foreach ($f in @('00_はじめに.md','_ログ.md','_いまの文脈.md')) {
+        if (-not (Test-Path (Join-Path $Dest $f))) { $addNotes += $f }
+    }
+    $srcTmpl = Join-Path $src 'Templates'
+    if (Test-Path $srcTmpl) {
+        foreach ($f in (Get-ChildItem $srcTmpl -Filter '*.md')) {
+            if (-not (Test-Path (Join-Path (Join-Path $Dest 'Templates') $f.Name))) { $addTmpls += $f.Name }
+        }
+    }
+    foreach ($f in (Get-ChildItem $src -Filter '*.base' -EA SilentlyContinue)) {
+        if (-not (Test-Path (Join-Path $Dest $f.Name))) { $addBases += $f.Name }
+    }
+
+    if ($addNotes.Count -eq 0 -and $addTmpls.Count -eq 0 -and $addBases.Count -eq 0) {
+        Ok "この vault には必要なものが揃っています。何も足しませんでした"
+        return $true
+    }
+
+    Say ""
+    Say "この vault に足りないもの:"
+    foreach ($f in $addNotes) { Say "    $f" }
+    if ($addTmpls.Count -gt 0) { Say "    Templates/ に $($addTmpls.Count) 件（$($addTmpls -join ' ')）" }
+    foreach ($f in $addBases) { Say "    $f" }
+    Say ""
+    Say "  既にあるノート・フォルダ・設定は一切変更しません。"
+    if ($env:OSK_YES -ne '1') {
+        $ans = Read-Host "  足しますか？ (Y/n)"
+        if ($ans -match '^[nN]') { Say "  何もしませんでした"; return $true }
+    }
+
+    $today = Get-Date -Format 'yyyy-MM-dd'
+    foreach ($f in $addNotes) {
+        Copy-Item (Join-Path $src $f) (Join-Path $Dest $f) -Force
+        $p = Join-Path $Dest $f
+        (Get-Content $p -Raw).Replace("updated: `n", "updated: $today`n") | Set-Content $p -NoNewline -Encoding UTF8
+        if ($f -eq '_ログ.md') { Add-Content $p "## $today`n`n- このキットの不足分を追加しました`n" }
+    }
+    if ($addTmpls.Count -gt 0) {
+        New-Item -ItemType Directory -Force -Path (Join-Path $Dest 'Templates') | Out-Null
+        foreach ($f in $addTmpls) { Copy-Item (Join-Path $srcTmpl $f) (Join-Path (Join-Path $Dest 'Templates') $f) -Force }
+    }
+    foreach ($f in $addBases) { Copy-Item (Join-Path $src $f) (Join-Path $Dest $f) -Force }
+
+    # .obsidian は既存の値を優先し、無いキーだけ補う
+    $dstCfg = Join-Path $Dest '.obsidian'
+    New-Item -ItemType Directory -Force -Path $dstCfg | Out-Null
+    foreach ($jf in @('core-plugins.json','app.json','templates.json')) {
+        $sp = Join-Path (Join-Path $src '.obsidian') $jf
+        $dp = Join-Path $dstCfg $jf
+        if (-not (Test-Path $sp)) { continue }
+        if (-not (Test-Path $dp)) { Copy-Item $sp $dp -Force; continue }
+        try {
+            Copy-Item $dp "$dp.osk-backup" -Force
+            $cur = Get-Content $dp -Raw | ConvertFrom-Json
+            $add = Get-Content $sp -Raw | ConvertFrom-Json
+            $changed = $false
+            foreach ($k in $add.PSObject.Properties.Name) {
+                if (-not $cur.PSObject.Properties.Name.Contains($k)) {
+                    $cur | Add-Member -NotePropertyName $k -NotePropertyValue $add.$k
+                    $changed = $true
+                }
+            }
+            if ($changed) { $cur | ConvertTo-Json -Depth 10 | Set-Content $dp -Encoding UTF8 }
+        } catch {}
+    }
+    Ok "足りないものを追加しました"
+    return $true
+}
+
 # フォルダ名を変える。番号プレフィックスは保ち、名前部分だけ差し替える。
 # リネームしたら .obsidian の参照と 00_はじめに.md の表も追従させること。
 # 怠ると「新規ノートの作成先」が存在しないフォルダを指したまま黙って壊れる。
@@ -259,23 +357,54 @@ for ($i = 0; $i -lt $args.Count; $i++) {
     elseif ($args[$i] -in @('--folders','-Folders')) { $FolderNames = $args[$i+1]; $i++ }
 }
 
+$AugmentMode = $false
+
 # 対話（irm | iex でも Read-Host は使える）
 if (-not $VaultPath -and -not $env:CI) {
-    Say ""
-    Say "続けて vault（ノートの入れ物）を作りますか？"
-    Say "  作らない場合はそのまま Enter を押してください。"
-    Say ""
-    Say "  1) 個人のメモをためたい"
-    Say "  2) 仕事のメモと議事録をためたい"
-    Say "  3) 勉強したことを残したい"
-    Say "  4) チームで手順書を共有したい"
-    Say ""
-    $VaultType = Read-Host "  番号を入力（作らないなら Enter）"
-    if ($VaultType) {
-        $defaultPath = Join-Path $HOME 'Documents\my-vault'
-        $inputPath = Read-Host "  どこに作りますか？ [$defaultPath]"
-        $VaultPath = if ($inputPath) { $inputPath } else { $defaultPath }
+    $existing = @(Get-ExistingVaults)
+    $wantNew = $true
+    if ($existing.Count -gt 0) {
+        Say ""
+        Say "すでに Obsidian を使っていますね。どうしますか？"
+        Say "  何もしない場合はそのまま Enter を押してください。"
+        Say ""
+        Say "  n) 新しく vault を作る"
+        Say ""
+        Say "  または、いま使っている vault に足りないものだけ足す:"
+        for ($i = 0; $i -lt $existing.Count; $i++) { Say "  $($i+1)) $($existing[$i])" }
+        Say ""
+        $choice = Read-Host "  番号か n を入力（何もしないなら Enter）"
+        if (-not $choice) { $wantNew = $false }
+        elseif ($choice -match '^[nN]') { $wantNew = $true }
+        elseif ($choice -match '^\d+$') {
+            $idx = [int]$choice - 1
+            if ($idx -ge 0 -and $idx -lt $existing.Count) {
+                $VaultPath = $existing[$idx]; $AugmentMode = $true; $wantNew = $false
+            } else { Warn "その番号の vault はありません。何もしません"; $wantNew = $false }
+        } else { Warn "番号として読めませんでした。何もしません"; $wantNew = $false }
     }
+
+    if (-not $AugmentMode -and $wantNew) {
+        Say ""
+        Say "どんな vault を作りますか？"
+        Say ""
+        Say "  1) 個人のメモをためたい"
+        Say "  2) 仕事のメモと議事録をためたい"
+        Say "  3) 勉強したことを残したい"
+        Say "  4) チームで手順書を共有したい"
+        Say ""
+        $VaultType = Read-Host "  番号を入力（やめるなら Enter）"
+        if ($VaultType) {
+            $defaultPath = Join-Path $HOME 'Documents\my-vault'
+            $inputPath = Read-Host "  どこに作りますか？ [$defaultPath]"
+            $VaultPath = if ($inputPath) { $inputPath } else { $defaultPath }
+        }
+    }
+}
+
+# 引数で既存 vault を指定された場合も検知する
+if ($VaultPath -and -not $AugmentMode) {
+    if (Test-Path (Join-Path $VaultPath '.obsidian')) { $AugmentMode = $true }
 }
 
 $VaultCreated = $false
@@ -284,7 +413,11 @@ if ($VaultPath) {
         '1' { '1_個人' }; '2' { '2_仕事' }; '3' { '3_学習' }; '4' { '4_チーム' }
         default { '1_個人' }
     }
-    if (New-Vault $VaultPath $typeDir) {
+    if ($AugmentMode) {
+        Say ""
+        Say "既にある vault を調べます: $VaultPath"
+        if (Update-Vault $VaultPath $typeDir) { $VaultCreated = $true }
+    } elseif (New-Vault $VaultPath $typeDir) {
         Ok "vault を作りました: $VaultPath"
         Rename-Folders $VaultPath
         $VaultCreated = $true
