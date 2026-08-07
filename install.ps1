@@ -177,7 +177,73 @@ $hasObsidian = ($obsidianPaths | Where-Object { Test-Path $_ }).Count -gt 0
 if ($hasObsidian) { Ok "Obsidian: インストール済み" }
 else { Warn "Obsidian が見つかりません → https://obsidian.md （無料）" }
 
-# ── 5. 次の一手 ──────────────────────────────────────────────────────────────
+# ── 5. vault を作る ──────────────────────────────────────────────────────────
+function New-Vault {
+    param($Dest, $TypeDir)
+    $src = Join-Path (Join-Path $KitDir 'vault-templates') $TypeDir
+    if (-not (Test-Path $src)) { Warn "型 $TypeDir が見つかりません"; return $false }
+    if ((Test-Path $Dest) -and (Get-ChildItem $Dest -Force -EA SilentlyContinue).Count -gt 0) {
+        Warn "$Dest は空ではありません。vault は作りませんでした。"
+        Say "  空のフォルダを指定してもう一度実行してください。"
+        return $false
+    }
+    New-Item -ItemType Directory -Force -Path $Dest | Out-Null
+    Copy-Item (Join-Path $src '*') $Dest -Recurse -Force
+    Get-ChildItem $Dest -Recurse -Force -Filter ".gitkeep" | Remove-Item -Force
+    $today = Get-Date -Format 'yyyy-MM-dd'
+    $logPath = Join-Path $Dest '_ログ.md'
+    if (Test-Path $logPath) {
+        (Get-Content $logPath -Raw).Replace("updated: `n", "updated: $today`n") | Set-Content $logPath -NoNewline
+        Add-Content $logPath "## $today`n`n- vault を作成しました`n"
+    }
+    $ctxPath = Join-Path $Dest '_いまの文脈.md'
+    if (Test-Path $ctxPath) {
+        (Get-Content $ctxPath -Raw).Replace("updated: `n", "updated: $today`n") | Set-Content $ctxPath -NoNewline
+    }
+    return $true
+}
+
+$VaultPath = $env:OSK_VAULT
+$VaultType = $env:OSK_VAULT_TYPE
+
+# 引数からも受け取る（-Vault <path> -Type <n>）
+for ($i = 0; $i -lt $args.Count; $i++) {
+    if ($args[$i] -in @('--vault','-Vault')) { $VaultPath = $args[$i+1]; $i++ }
+    elseif ($args[$i] -in @('--type','-Type')) { $VaultType = $args[$i+1]; $i++ }
+}
+
+# 対話（irm | iex でも Read-Host は使える）
+if (-not $VaultPath -and -not $env:CI) {
+    Say ""
+    Say "続けて vault（ノートの入れ物）を作りますか？"
+    Say "  作らない場合はそのまま Enter を押してください。"
+    Say ""
+    Say "  1) 個人のメモをためたい"
+    Say "  2) 仕事のメモと議事録をためたい"
+    Say "  3) 勉強したことを残したい"
+    Say "  4) チームで手順書を共有したい"
+    Say ""
+    $VaultType = Read-Host "  番号を入力（作らないなら Enter）"
+    if ($VaultType) {
+        $defaultPath = Join-Path $HOME 'Documents\my-vault'
+        $inputPath = Read-Host "  どこに作りますか？ [$defaultPath]"
+        $VaultPath = if ($inputPath) { $inputPath } else { $defaultPath }
+    }
+}
+
+$VaultCreated = $false
+if ($VaultPath) {
+    $typeDir = switch ("$VaultType") {
+        '1' { '1_個人' }; '2' { '2_仕事' }; '3' { '3_学習' }; '4' { '4_チーム' }
+        default { '1_個人' }
+    }
+    if (New-Vault $VaultPath $typeDir) {
+        Ok "vault を作りました: $VaultPath"
+        $VaultCreated = $true
+    }
+}
+
+# ── 6. 次の一手 ──────────────────────────────────────────────────────────────
 Say ""
 Write-Host "インストール完了" -ForegroundColor Green
 Say ""
@@ -185,12 +251,24 @@ Say "次にやること"
 $step = 1
 if (-not $hasObsidian) { Say "  $step. Obsidian をインストール https://obsidian.md"; $step++ }
 if (-not $hasClaude)   { Say "  $step. Claude Code をインストール https://claude.com/product/claude-code"; $step++ }
-Say "  $step. vault を置きたい場所で PowerShell を開き、こう打つ:"
-Say ""
-Say "       claude"
-Say "       /vault-init"
-Say ""
-Say "     質問は1つだけです。あとは全部そろった状態で出てきます。"
+if ($VaultCreated) {
+    Say "  $step. Obsidian を開いて、この vault を選ぶ:"
+    Say ""
+    Say "     Obsidian を起動 → 「フォルダを vault として開く」 →"
+    Say "     $VaultPath を選ぶ"
+    $step++
+    Say ""
+    Say "  $step. 最初に 00_はじめに を読む"
+    Say ""
+    Say "  AI に手伝わせたいときは、この vault のフォルダで claude を起動してください。"
+} else {
+    Say "  $step. vault を置きたい場所で PowerShell を開き、こう打つ:"
+    Say ""
+    Say "       claude"
+    Say "       /vault-init"
+    Say ""
+    Say "     質問は1つだけです。あとは全部そろった状態で出てきます。"
+}
 Say ""
 Say "使えるコマンド: /vault-init（作る） /vault-guide（教わる） /vault-save（残す）"
 Say "                /vault-ask（聞く）   /vault-lint（点検する）"
