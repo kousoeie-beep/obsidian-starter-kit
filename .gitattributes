@@ -1,0 +1,6 @@
+# Windows PowerShell 5.1 は BOM 無し UTF-8 を ANSI（日本語環境なら CP932）として読む。
+# 日本語コメントを含む .ps1 は UTF-8 BOM 付きで保持しないと、Windows で構文エラーになる。
+# BOM はファイル内容の一部なので git はそのまま保持するが、改行だけは明示しておく。
+*.ps1 text eol=crlf
+*.sh  text eol=lf
+*.md  text

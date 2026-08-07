@@ -13,7 +13,7 @@ MANIFEST="$CLAUDE_DIR/.obsidian-starter-kit-manifest"
 BACKUP_DIR="$CLAUDE_DIR/.obsidian-starter-kit-backup"
 
 if [ ! -f "$MANIFEST" ]; then
-  echo "このキットのインストール記録が見つかりません（$MANIFEST）"
+  echo "このキットのインストール記録が見つかりません（${MANIFEST}）"
   echo "何も削除しませんでした。"
   exit 0
 fi
@@ -44,7 +44,7 @@ if [ -d "$BACKUP_DIR" ]; then
 fi
 
 echo ""
-echo "キット本体（$KIT_DIR）は残してあります。完全に消す場合は:"
+echo "キット本体（${KIT_DIR}）は残してあります。完全に消す場合は:"
 echo "  rm -rf $KIT_DIR"
 echo ""
 echo "あなたの vault とノートは削除していません。"
