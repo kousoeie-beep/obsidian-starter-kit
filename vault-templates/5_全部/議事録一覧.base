@@ -1,0 +1,10 @@
+filters:
+  and:
+    - 'type == "meeting"'
+views:
+  - type: table
+    name: 議事録
+    order: [file.name, date, 参加者]
+    sort:
+      - property: date
+        direction: DESC

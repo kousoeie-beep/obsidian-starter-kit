@@ -1,0 +1,13 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - '!file.name.contains("Template")'
+views:
+  - type: table
+    name: すべて
+    order:
+      - file.name
+      - file.mtime
+    sort:
+      - property: file.mtime
+        direction: DESC

@@ -1,0 +1,10 @@
+filters:
+  and:
+    - 'type == "source"'
+views:
+  - type: table
+    name: 読んだもの
+    order: [file.name, 著者, 読了日]
+    sort:
+      - property: 読了日
+        direction: DESC

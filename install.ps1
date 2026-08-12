@@ -393,11 +393,14 @@ if (-not $VaultPath -and -not $env:CI) {
         Say "  3) 勉強したことを残したい"
         Say "  4) チームで手順書を共有したい"
         Say ""
-        Say "  5) 用途を伝えて、AI に構造から設計してもらう"
-        Say "     上の4つに当てはまらないとき。Claude Code が必要です"
+        Say "  5) 全部やりたい（1〜3をまとめた形）"
+        Say "     どれか1つに決められないとき。フォルダは後から減らせます"
+        Say ""
+        Say "  6) 用途を伝えて、AI に構造から設計してもらう"
+        Say "     上に当てはまらないとき。Claude Code が必要です"
         Say ""
         $VaultType = Read-Host "  番号を入力（やめるなら Enter）"
-        if ($VaultType -eq '5') {
+        if ($VaultType -eq '6') {
             Say ""
             Say "AI に設計してもらう場合の手順:"
             Say ""
@@ -428,9 +431,15 @@ if ($VaultPath -and -not $AugmentMode) {
 $VaultCreated = $false
 if ($VaultPath) {
     $typeDir = switch ("$VaultType") {
-        '1' { '1_個人' }; '2' { '2_仕事' }; '3' { '3_学習' }; '4' { '4_チーム' }
+        '1' { '1_個人' }; '2' { '2_仕事' }; '3' { '3_学習' }; '4' { '4_チーム' }; '5' { '5_全部' }
         default { '1_個人' }
     }
+    if ($typeDir -eq '5_全部') {
+        Say ""
+        Say "  ※ チームで共有する vault は、これとは別に作ることをおすすめします。"
+        Say "    個人の日記が混ざった vault を共有すると事故になります。"
+    }
+
     if ($AugmentMode) {
         Say ""
         Say "既にある vault を調べます: $VaultPath"

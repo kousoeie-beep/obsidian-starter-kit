@@ -512,12 +512,15 @@ if [ -z "$VAULT_PATH" ] && [ -r /dev/tty ]; then
     say "  3) 勉強したことを残したい"
     say "  4) チームで手順書を共有したい"
     say ""
-    say "  ${BOLD}5) 用途を伝えて、AI に構造から設計してもらう${RESET}"
-    say "     ${DIM}上の4つに当てはまらないとき。Claude Code が必要です${RESET}"
+    say "  ${BOLD}5) 全部やりたい（1〜3をまとめた形）${RESET}"
+    say "     ${DIM}どれか1つに決められないとき。フォルダは後から減らせます${RESET}"
+    say ""
+    say "  ${BOLD}6) 用途を伝えて、AI に構造から設計してもらう${RESET}"
+    say "     ${DIM}上に当てはまらないとき。Claude Code が必要です${RESET}"
     say ""
     printf "  番号を入力（やめるなら Enter）: "
     read -r VAULT_TYPE < /dev/tty || VAULT_TYPE=""
-    if [ "$VAULT_TYPE" = "5" ]; then
+    if [ "$VAULT_TYPE" = "6" ]; then
       say ""
       say "${BOLD}AI に設計してもらう場合の手順:${RESET}"
       say ""
@@ -553,9 +556,17 @@ if [ -n "$VAULT_PATH" ]; then
     2|仕事)   TYPE_DIR="2_仕事" ;;
     3|学習)   TYPE_DIR="3_学習" ;;
     4|チーム) TYPE_DIR="4_チーム" ;;
+    5|全部)   TYPE_DIR="5_全部" ;;
     *)        TYPE_DIR="1_個人" ;;
   esac
   VAULT_PATH="${VAULT_PATH/#\~/$HOME}"
+
+  # 全部入りを選んだ人には、チーム共有だけは分けたほうがいいと伝える
+  if [ "$TYPE_DIR" = "5_全部" ]; then
+    say ""
+    say "${DIM}  ※ チームで共有する vault は、これとは別に作ることをおすすめします。${RESET}"
+    say "${DIM}    個人の日記が混ざった vault を共有すると事故になります。${RESET}"
+  fi
 
   if [ "$AUGMENT_MODE" -eq 1 ]; then
     # 既存 vault：足りないものだけ足す。フォルダ構成は既存を尊重し、勝手に増やさない
