@@ -20,6 +20,26 @@ curl -fsSL https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/
 [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; iex ((irm https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/main/install.ps1).TrimStart([char]0xFEFF))
 ```
 
+
+### 用途に合わせて構造から作りたい場合
+
+上の4つに当てはまらないときは、**5番を選ぶか、Claude Code で `/vault-init` を実行**してください。
+「この vault は何のために使いますか？」と聞かれるので、やりたいことをそのまま書きます。
+
+> 例：「顧客からもらった資料を整理して、打ち合わせの記録も残したい」
+> → `01_受信箱` `02_議事録` `03_人と組織` の3つだけ作ります。
+> **案件フォルダも手順書フォルダも作りません。** 使わない器を先に作ると、埋めることが目的になるからです。
+
+答えを3つの軸で読み取って構造を決めます。
+
+| 軸 | 構造への影響 |
+|---|---|
+| **誰が使うか**（自分 / チーム / 会社） | チーム以上はデイリーノートを無効にし（個人の日記が混ざるため）、守秘の運用を `CLAUDE.md` に書きます |
+| **何を溜めるか**（議事録・案件・手順・人・文献・調査・アイデア・日記） | 該当したものだけフォルダを作ります。最大5個 |
+| **AI にどこまで書かせるか** | 「調査をためる」なら `.raw/` が主役の構成にします |
+
+---
+
 ### すでに Obsidian を使っている場合
 
 **いま使っている vault を検知して、足りないものだけ足せます。** 一から作り直す必要はありません。
@@ -72,6 +92,9 @@ curl -fsSL https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/
   2) 仕事のメモと議事録をためたい
   3) 勉強したことを残したい
   4) チームで手順書を共有したい
+
+  5) 用途を伝えて、AI に構造から設計してもらう
+     上の4つに当てはまらないとき。Claude Code が必要です
 
   番号を入力（作らないなら Enter）:
   どこに作りますか？ [~/Documents/my-vault]:

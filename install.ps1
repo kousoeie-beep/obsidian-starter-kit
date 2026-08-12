@@ -393,7 +393,25 @@ if (-not $VaultPath -and -not $env:CI) {
         Say "  3) 勉強したことを残したい"
         Say "  4) チームで手順書を共有したい"
         Say ""
+        Say "  5) 用途を伝えて、AI に構造から設計してもらう"
+        Say "     上の4つに当てはまらないとき。Claude Code が必要です"
+        Say ""
         $VaultType = Read-Host "  番号を入力（やめるなら Enter）"
+        if ($VaultType -eq '5') {
+            Say ""
+            Say "AI に設計してもらう場合の手順:"
+            Say ""
+            Say "  1. vault を置きたい場所に空のフォルダを作る"
+            Say "  2. そのフォルダで PowerShell を開いて claude と打つ"
+            Say "  3. /vault-init と打つ"
+            Say ""
+            Say "  「この vault は何のために使いますか？」と聞かれるので、"
+            Say "  やりたいことをそのまま書いてください。"
+            Say "  例：顧客からもらった資料を整理して、打ち合わせの記録も残したい"
+            Say ""
+            Say "  用途に合わせて、必要なフォルダだけを作ります。"
+            $VaultType = ''
+        }
         if ($VaultType) {
             $defaultPath = Join-Path $HOME 'Documents\my-vault'
             $inputPath = Read-Host "  どこに作りますか？ [$defaultPath]"
