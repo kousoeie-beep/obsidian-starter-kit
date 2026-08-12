@@ -336,6 +336,18 @@ jobs:
           for f in "$GITHUB_WORKSPACE/ol-vault"/.obsidian/*.json; do node -e "JSON.parse(require(\"fs\").readFileSync(process.argv[1],\"utf8\"))" "$f"; done
           echo OK
 
+      - name: Karpathy 土台（.raw と index）が全型に入ること
+        run: |
+          set -e
+          for t in 1 2 3 4; do
+            V="$GITHUB_WORKSPACE/kv$t"
+            bash "$OSK_KIT_DIR/install.sh" --vault "$V" --type $t >/dev/null
+            test -d "$V/.raw" || { echo "型$t: .raw が無い"; exit 1; }
+            test -f "$V/index.md" || { echo "型$t: index.md が無い"; exit 1; }
+            grep -q '.raw' "$V/00_はじめに.md" || { echo "型$t: .raw の説明が無い"; exit 1; }
+          done
+          echo OK
+
       - name: フォルダ名を変えても設定が追従すること
         run: |
           set -e
