@@ -146,7 +146,29 @@ grep -rho "\[\[[^]]*/[^]]*\]\]" --include="*.md" . | wc -l
 find . -name "*.md" -not -path "*/.git/*" | sed 's|.*/||' | sort | uniq -d
 ```
 
-同名が0件なら、一括でパスを落とす（**検証済みの手順**）：
+**同名があってもなくても使える同梱スクリプトがある**（621ノート・616リンクの実 vault で検証済み）：
+
+```bash
+# 同名ノートの一覧を作る
+find . -name "*.md" -not -path "*/.git/*" | sed 's|.*/||; s|\.md$||' | sort | uniq -d > /tmp/dupes.txt
+
+# 同名でないものだけパスを落とす（同名のリンクはパスを残す）
+find . -name "*.md" -not -path "*/.git/*" -print0 \
+  | xargs -0 perl ~/.claude/skills/vault-organize/references/rewrite-links.pl /tmp/dupes.txt
+```
+
+実行結果の例（実 vault）：
+
+```
+書き換えたファイル: 119
+パスを落としたリンク: 518
+同名のため残したリンク: 82
+→ ノート 621件のまま／リンク切れ 69→67（減った）
+```
+
+**エイリアス付き `[[名前|表示]]` と見出し付き `[[名前#見出し]]` も壊さない。**
+
+手で書く場合（同名が0件のときだけ）：
 
 ```bash
 grep -rl "\[\[[^]]*/[^]]*\]\]" --include="*.md" --exclude-dir=.git . \
