@@ -225,6 +225,24 @@ jobs:
           Write-Host OK
           $global:LASTEXITCODE = 0
 
+      - name: powershell link rewrite works (organize step)
+        run: |
+          $V = "$env:GITHUB_WORKSPACE\linktest"
+          New-Item -ItemType Directory -Force -Path "$V\a\b" | Out-Null
+          Set-Content "$V\a\b\note.md" "# note" -Encoding UTF8
+          Set-Content "$V\ref.md" "[[a/b/note]] and [[plain]]" -Encoding UTF8
+          Get-ChildItem $V -Recurse -Filter *.md | ForEach-Object {
+            $t = Get-Content $_.FullName -Raw -Encoding UTF8
+            $n = [regex]::Replace($t, '\[\[[^\]]*/([^\]/]+)\]\]', '[[$1]]')
+            if ($n -ne $t) { Set-Content $_.FullName $n -NoNewline -Encoding UTF8 }
+          }
+          $r = Get-Content "$V\ref.md" -Raw
+          if ($r -notmatch '\[\[note\]\]') { throw "path was not stripped" }
+          if ($r -notmatch '\[\[plain\]\]') { throw "plain link was damaged" }
+          if ($r -match '/') { throw "a slash remains in links" }
+          Write-Host OK
+          $global:LASTEXITCODE = 0
+
   # ── PowerShell 7 ──────────────────────────────────────────────────────────
   windows-pwsh7:
     name: windows / PowerShell 7
@@ -365,6 +383,28 @@ jobs:
           grep -q '置き場が無い' /tmp/diag.txt || { echo 'ルート直下の散らばりを検出できていない'; exit 1; }
           grep -q '深すぎる' /tmp/diag.txt || { echo '深い階層を検出できていない'; exit 1; }
           grep -q 'パス付きリンク' /tmp/diag.txt || { echo 'パス付きリンクを報告していない'; exit 1; }
+          echo OK
+
+      - name: 添付の集約とリンク書き換えが壊さないこと
+        run: |
+          set -e
+          A="$GITHUB_WORKSPACE/atttest"
+          rm -rf "$A"; mkdir -p "$A"/{メモ,会議,Attachments}
+          : > "$A/メモ/図1.png"; : > "$A/会議/図2.png"
+          printf '![[図1.png]] と [[会議/議事録]]\n' > "$A/メモ/a.md"
+          printf '# 議事録\n' > "$A/会議/議事録.md"
+          before=$(find "$A" -type f | wc -l | tr -d ' ')
+          # 添付を集約（同名があれば退避して報告する方針なので、ここでは無い前提）
+          find "$A" -name '*.png' -not -path '*/Attachments/*' -exec mv {} "$A/Attachments/" \;
+          # パス付きリンクを名前だけに
+          grep -rl '\[\[[^]]*/[^]]*\]\]' --include='*.md' "$A" 2>/dev/null | while read -r f; do
+            perl -CSD -pi -e 's/\[\[[^\]]*\/([^\]\/]+)\]\]/[[$1]]/g' "$f"
+          done
+          after=$(find "$A" -type f | wc -l | tr -d ' ')
+          [ "$before" = "$after" ] || { echo "ファイル数が変わった: $before → $after"; exit 1; }
+          test -f "$A/Attachments/図1.png" || { echo '添付が集約されていない'; exit 1; }
+          grep -q '\[\[議事録\]\]' "$A/メモ/a.md" || { echo 'パス付きリンクが直っていない'; exit 1; }
+          grep -q '!\[\[図1.png\]\]' "$A/メモ/a.md" || { echo '画像リンクが壊れた'; exit 1; }
           echo OK
 
       - name: はじめにの表と実フォルダが一致すること
