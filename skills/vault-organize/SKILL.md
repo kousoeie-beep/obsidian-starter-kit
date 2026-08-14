@@ -216,8 +216,42 @@ PowerShell に読み替えて1つずつ実行すること。
 
 1. 退避（git commit またはコピー）が済んでいることを再確認
 2. **フォルダを作る**（移動先が無ければ）
-3. **移動する**（`mv`。同名ファイルがある場合は上書きせず、`-名前 2.md` として退避し報告）
+3. **移動する。`mv` を素で使わない**（下記）
 4. **パス付きリンクを修正する**（Step 3 の方法）
+### 移動は必ず「上書きしない」形で行う
+
+**`mv src dst/` は、移動先に同名があると黙って上書きする。** ノートが1件消える。
+必ず存在を確かめてから動かし、ぶつかったものは**移動せずに報告する**。
+
+```bash
+move_safe() {
+  local src="$1" dstdir="$2"
+  local base; base=$(basename "$src")
+  if [ -e "$dstdir/$base" ]; then
+    echo "  衝突（移動しません）: $src → $dstdir/$base が既にある"
+    return 1
+  fi
+  mv "$src" "$dstdir/"
+}
+```
+
+PowerShell の場合：
+
+```powershell
+function Move-Safe($Src, $DstDir) {
+  $base = Split-Path $Src -Leaf
+  if (Test-Path (Join-Path $DstDir $base)) {
+    Write-Host "  conflict (not moved): $Src"
+    return $false
+  }
+  Move-Item $Src $DstDir
+  return $true
+}
+```
+
+**衝突したファイルは最後にまとめて報告する。** 勝手にリネームして動かさない。
+どちらを残すかは持ち主が決めることで、AI が決めることではない。
+
 5. **`.obsidian` の設定を新構造に合わせる**
    - `app.json` の `newFileFolderPath`
    - `app.json` の `attachmentFolderPath`
