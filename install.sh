@@ -22,8 +22,8 @@ KIT_DIR="${OSK_KIT_DIR:-$HOME/.obsidian-starter-kit}"
 CLAUDE_DIR="${OSK_CLAUDE_DIR:-$HOME/.claude}"
 
 # このキットが提供するコマンド名（アンインストール時もこの一覧を使う）
-COMMANDS=(vault-init vault-guide vault-save vault-ask vault-lint)
-SKILLS=(vault-scaffold vault-operate vault-teach)
+COMMANDS=(vault-init vault-guide vault-save vault-ask vault-lint vault-organize)
+SKILLS=(vault-scaffold vault-operate vault-teach vault-organize)
 
 # ── 表示ヘルパー ─────────────────────────────────────────────────────────────
 if [ -t 1 ]; then

@@ -27,8 +27,8 @@ $RepoUrl   = if ($env:OSK_REPO_URL)   { $env:OSK_REPO_URL }   else { 'https://gi
 $KitDir    = if ($env:OSK_KIT_DIR)    { $env:OSK_KIT_DIR }    else { Join-Path $HOME '.obsidian-starter-kit' }
 $ClaudeDir = if ($env:OSK_CLAUDE_DIR) { $env:OSK_CLAUDE_DIR } else { Join-Path $HOME '.claude' }
 
-$Commands = @('vault-init','vault-guide','vault-save','vault-ask','vault-lint')
-$Skills   = @('vault-scaffold','vault-operate','vault-teach')
+$Commands = @('vault-init','vault-guide','vault-save','vault-ask','vault-lint','vault-organize')
+$Skills   = @('vault-scaffold','vault-operate','vault-teach','vault-organize')
 
 function Say  { param($m) Write-Host $m }
 function Ok   { param($m) Write-Host "✓ $m" -ForegroundColor Green }

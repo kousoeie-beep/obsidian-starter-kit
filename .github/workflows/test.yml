@@ -58,8 +58,8 @@ jobs:
       - name: 配置されたものを確認
         run: |
           set -e
-          test "$(ls "$OSK_CLAUDE_DIR"/commands/vault-*.md | wc -l)" -eq 5
-          test "$(ls -d "$OSK_CLAUDE_DIR"/skills/vault-* | wc -l)" -eq 3
+          test "$(ls "$OSK_CLAUDE_DIR"/commands/vault-*.md | wc -l)" -eq 6
+          test "$(ls -d "$OSK_CLAUDE_DIR"/skills/vault-* | wc -l)" -eq 4
           test "$(ls "$OSK_CLAUDE_DIR"/skills/vault-scaffold/references/*.md | wc -l)" -eq 5
           test -f "$OSK_CLAUDE_DIR/.obsidian-starter-kit-manifest"
           echo OK
@@ -191,8 +191,8 @@ jobs:
       - name: 配置されたものを確認
         run: |
           $c = $env:OSK_CLAUDE_DIR
-          if ((Get-ChildItem "$c\commands" -Filter "vault-*.md").Count -ne 5) { throw "wrong command count" }
-          if ((Get-ChildItem "$c\skills" -Directory).Count -ne 3) { throw "wrong skill count" }
+          if ((Get-ChildItem "$c\commands" -Filter "vault-*.md").Count -ne 6) { throw "wrong command count" }
+          if ((Get-ChildItem "$c\skills" -Directory).Count -ne 4) { throw "wrong skill count" }
           if ((Get-ChildItem "$c\skills\vault-scaffold\references" -Filter "*.md").Count -ne 5) { throw "missing references" }
           if (-not (Test-Path "$c\.obsidian-starter-kit-manifest")) { throw "manifest missing" }
           Write-Host OK
@@ -255,8 +255,8 @@ jobs:
       - name: 配置されたものを確認
         run: |
           $c = $env:OSK_CLAUDE_DIR
-          if ((Get-ChildItem "$c\commands" -Filter "vault-*.md").Count -ne 5) { throw "wrong command count" }
-          if ((Get-ChildItem "$c\skills" -Directory).Count -ne 3) { throw "wrong skill count" }
+          if ((Get-ChildItem "$c\commands" -Filter "vault-*.md").Count -ne 6) { throw "wrong command count" }
+          if ((Get-ChildItem "$c\skills" -Directory).Count -ne 4) { throw "wrong skill count" }
           if (-not (Test-Path "$c\.obsidian-starter-kit-manifest")) { throw "manifest missing" }
           Write-Host OK
 
@@ -390,8 +390,8 @@ jobs:
       - name: 入ったか確認
         run: |
           set -e
-          test "$(ls "$OSK_CLAUDE_DIR"/commands/vault-*.md | wc -l)" -eq 5
-          test "$(ls -d "$OSK_CLAUDE_DIR"/skills/vault-* | wc -l)" -eq 3
+          test "$(ls "$OSK_CLAUDE_DIR"/commands/vault-*.md | wc -l)" -eq 6
+          test "$(ls -d "$OSK_CLAUDE_DIR"/skills/vault-* | wc -l)" -eq 4
           test -f "$OSK_CLAUDE_DIR/skills/vault-scaffold/SKILL.md"
           echo OK
 
@@ -426,7 +426,7 @@ jobs:
       - name: verify
         run: |
           $c = $env:OSK_CLAUDE_DIR
-          if ((Get-ChildItem "$c\commands" -Filter "vault-*.md").Count -ne 5) { throw "wrong command count" }
-          if ((Get-ChildItem "$c\skills" -Directory).Count -ne 3) { throw "wrong skill count" }
+          if ((Get-ChildItem "$c\commands" -Filter "vault-*.md").Count -ne 6) { throw "wrong command count" }
+          if ((Get-ChildItem "$c\skills" -Directory).Count -ne 4) { throw "wrong skill count" }
           if (-not (Test-Path "$c\skills\vault-scaffold\SKILL.md")) { throw "skill missing" }
           Write-Host OK
