@@ -43,6 +43,14 @@ git -C . rev-parse --git-dir 2>/dev/null   # git 管理か
 
 ## Step 1. 散らかりを診断する（読むだけ・まだ動かさない）
 
+**bash が使えるなら、同梱の診断スクリプトを実行するのが速い**（読むだけで何も変更しない）：
+
+```bash
+bash ~/.claude/skills/vault-organize/references/diagnose.sh /path/to/vault
+```
+
+Windows など bash が無い環境では、以下を1つずつ実行して同じことを調べる。
+
 ```bash
 # 規模
 find . -name "*.md" -not -path "./.obsidian/*" -not -path "./.git/*" | wc -l
@@ -125,21 +133,49 @@ grep -rho "\[\[[^]]*/[^]]*\]\]" --include="*.md" . | wc -l
 
 ### 移動後の修正方法
 
-移動したファイルについて、`[[旧パス/名前]]` を `[[名前]]` に置き換える。
+`[[旧パス/名前]]` を `[[名前]]` に置き換える。
 **パスを消すのが最も安全**（Obsidian は名前だけで解決できる。同名ファイルが無い限り）。
 
-```bash
-# 例：02_議事録/MTG.md を 03_議事録/MTG.md に移した場合
-grep -rl "\[\[02_議事録/MTG\]\]" --include="*.md" . \
-  | xargs sed -i.bak 's|\[\[02_議事録/MTG\]\]|[[MTG]]|g'
-```
-
-**同名のノートが2つ以上ある場合はパスを消してはいけない。** その場合は新パスに書き換える。
-事前に同名チェックをすること：
+**まず同名チェックをする。同名があればパスを消してはいけない。**
 
 ```bash
-find . -name "*.md" | sed 's|.*/||' | sort | uniq -d
+find . -name "*.md" -not -path "*/.git/*" | sed 's|.*/||' | sort | uniq -d
 ```
+
+同名が0件なら、一括でパスを落とす（**検証済みの手順**）：
+
+```bash
+grep -rl "\[\[[^]]*/[^]]*\]\]" --include="*.md" --exclude-dir=.git . \
+  | while read -r f; do
+      perl -CSD -pi -e 's/\[\[[^\]]*\/([^\]\/]+)\]\]/[[$1]]/g' "$f"
+    done
+```
+
+> **`sed` ではなく `perl -CSD` を使う。** 日本語を含むパスでは `sed` のエスケープが壊れやすく、
+> macOS(BSD) と Linux(GNU) で `-i` の書式も違う。`perl -CSD` は UTF-8 を正しく扱い、
+> どちらでも同じ書き方で動く。
+
+**同名が1件でもある場合は、そのノートだけ個別に新パスへ書き換える。** 一括で消さない。
+
+### Windows の場合
+
+`bash` が無い環境では、上のコマンドは動かない。同じことを PowerShell で行う。
+
+```powershell
+# 同名チェック
+Get-ChildItem -Recurse -Filter *.md | Where-Object { $_.FullName -notmatch '\\\.git\\' } |
+  Group-Object Name | Where-Object Count -gt 1
+
+# パス付きリンクをパスなしに（同名が0件のときだけ）
+Get-ChildItem -Recurse -Filter *.md | Where-Object { $_.FullName -notmatch '\\\.git\\' } | ForEach-Object {
+  $t = Get-Content $_.FullName -Raw -Encoding UTF8
+  $n = [regex]::Replace($t, '\[\[[^\]]*/([^\]/]+)\]\]', '[[$1]]')
+  if ($n -ne $t) { Set-Content $_.FullName $n -NoNewline -Encoding UTF8 }
+}
+```
+
+**`references/diagnose.sh` は bash 用。** Windows では実行せず、SKILL 本文のコマンドを
+PowerShell に読み替えて1つずつ実行すること。
 
 ---
 
