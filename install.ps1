@@ -478,7 +478,8 @@ if ($VaultCreated) {
     Say "     質問は1つだけです。あとは全部そろった状態で出てきます。"
 }
 Say ""
-Say "使えるコマンド: /vault-init（作る） /vault-guide（教わる） /vault-save（残す）"
-Say "                /vault-ask（聞く）   /vault-lint（点検する）"
+Say "使えるコマンド: /vault-init（作る）     /vault-guide（教わる） /vault-save（残す）"
+Say "                /vault-ask（聞く）     /vault-lint（点検する）"
+Say "                /vault-organize（散らかった vault を整理する）"
 Say "アンインストール: powershell -ExecutionPolicy Bypass -File $KitDir\uninstall.ps1"
 Say ""

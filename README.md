@@ -51,6 +51,10 @@ curl -fsSL https://raw.githubusercontent.com/kousoeie-beep/obsidian-starter-kit/
 
 長く使っていてフォルダがぐちゃぐちゃになった vault は、**`/vault-organize` で整理できます。**
 
+> このコマンドは **Claude Code が必要**です。その vault のフォルダで `claude` を起動して実行します。
+> ノートの中身を読んで分類し、移動前に提案して承認を取り、移動後に検証する——という
+> 判断が要るため、インストーラ側ではなく AI 側に置いています。
+
 ```
 診断: /Users/you/my-vault
 規模: ノート 621件 / フォルダ 139個 / 最大 7階層

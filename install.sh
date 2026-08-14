@@ -599,6 +599,22 @@ if [ "$HAS_CLAUDE" -eq 0 ]; then
   step=$((step + 1))
 fi
 if [ "$VAULT_CREATED" -eq 2 ]; then
+  # 既存 vault に足したときは、散らかっていれば整理も案内する
+  if [ -n "${VAULT_PATH:-}" ] && [ -d "$VAULT_PATH" ]; then
+    deep=$(find "$VAULT_PATH" -name "*.md" -not -path "*/.obsidian/*" -not -path "*/.git/*" \
+             -not -path "*/.claude/*" 2>/dev/null | awk -F/ '{print NF}' | sort -rn | head -1)
+    rootmd=$(find "$VAULT_PATH" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+    basedepth=$(printf '%s' "$VAULT_PATH" | awk -F/ '{print NF}')
+    reldepth=$(( ${deep:-0} - basedepth ))
+    if [ "$reldepth" -gt 3 ] || [ "$rootmd" -ge 10 ]; then
+      say ""
+      say "${YELLOW}!${RESET} この vault は少し散らかっているようです（最大 ${reldepth} 階層 / ルート直下に .md が ${rootmd} 件）"
+      say "  ${BOLD}整理したい場合は、この vault のフォルダで:${RESET}"
+      say "       ${CYAN}claude${RESET}"
+      say "       ${CYAN}/vault-organize${RESET}"
+      say "  ${DIM}まず診断だけして、移動する前に必ず一覧で見せます。勝手には動かしません。${RESET}"
+    fi
+  fi
   say "  ${BOLD}${step}. Obsidian でこの vault を開き直す:${RESET}"
   say ""
   say "     ${CYAN}$VAULT_PATH${RESET}"
@@ -628,7 +644,8 @@ else
   say "     質問は1つだけです。あとは全部そろった状態で出てきます。"
 fi
 say ""
-say "${DIM}使えるコマンド: /vault-init（作る） /vault-guide（教わる） /vault-save（残す）"
-say "                /vault-ask（聞く）   /vault-lint（点検する）"
+say "${DIM}使えるコマンド: /vault-init（作る）     /vault-guide（教わる） /vault-save（残す）"
+say "                /vault-ask（聞く）     /vault-lint（点検する）"
+say "                /vault-organize（散らかった vault を整理する）"
 say "アンインストール: bash $KIT_DIR/uninstall.sh${RESET}"
 say ""

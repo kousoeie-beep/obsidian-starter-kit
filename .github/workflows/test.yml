@@ -344,6 +344,29 @@ jobs:
           test ! -d "$HOME/Documents/my-vault" || { echo '5番なのに vault を作った'; exit 1; }
           echo OK
 
+      - name: vault-organize が使えること（診断は読むだけで壊さない）
+        run: |
+          set -e
+          test -f "$OSK_CLAUDE_DIR/commands/vault-organize.md"
+          test -f "$OSK_CLAUDE_DIR/skills/vault-organize/SKILL.md"
+          D="$OSK_CLAUDE_DIR/skills/vault-organize/references/diagnose.sh"
+          test -f "$D"
+          bash -n "$D"
+          # 散らかった vault を作って診断させる
+          M="$GITHUB_WORKSPACE/messy"
+          mkdir -p "$M/a/b/c/d" "$M/空フォルダ"
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do echo "# note $i" > "$M/note$i.md"; done
+          echo '[[a/b/deep]]' > "$M/a/b/c/d/deep.md"
+          before=$(find "$M" -name "*.md" | wc -l)
+          bash "$D" "$M" > /tmp/diag.txt 2>&1
+          after=$(find "$M" -name "*.md" | wc -l)
+          # 診断は読むだけ：ファイルが増減しないこと
+          [ "$before" = "$after" ] || { echo '診断がファイルを変更した'; exit 1; }
+          grep -q '置き場が無い' /tmp/diag.txt || { echo 'ルート直下の散らばりを検出できていない'; exit 1; }
+          grep -q '深すぎる' /tmp/diag.txt || { echo '深い階層を検出できていない'; exit 1; }
+          grep -q 'パス付きリンク' /tmp/diag.txt || { echo 'パス付きリンクを報告していない'; exit 1; }
+          echo OK
+
       - name: はじめにの表と実フォルダが一致すること
         run: |
           set -e
