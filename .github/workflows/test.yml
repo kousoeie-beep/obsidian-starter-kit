@@ -394,8 +394,15 @@ jobs:
           printf '![[図1.png]] と [[会議/議事録]]\n' > "$A/メモ/a.md"
           printf '# 議事録\n' > "$A/会議/議事録.md"
           before=$(find "$A" -type f | wc -l | tr -d ' ')
-          # 添付を集約（同名があれば退避して報告する方針なので、ここでは無い前提）
-          find "$A" -name '*.png' -not -path '*/Attachments/*' -exec mv {} "$A/Attachments/" \;
+          # 添付を集約。skill の方針どおり素の mv は使わず、衝突を検出して飛ばす
+          move_safe() {
+            base=$(basename "$1")
+            if [ -e "$2/$base" ]; then echo "  衝突（移動しません）: $base"; return 1; fi
+            mv "$1" "$2/"
+          }
+          find "$A" -name '*.png' -not -path '*/Attachments/*' | while read -r img; do
+            move_safe "$img" "$A/Attachments" || true
+          done
           # パス付きリンクを名前だけに
           grep -rl '\[\[[^]]*/[^]]*\]\]' --include='*.md' "$A" 2>/dev/null | while read -r f; do
             perl -CSD -pi -e 's/\[\[[^\]]*\/([^\]\/]+)\]\]/[[$1]]/g' "$f"
